@@ -1,12 +1,30 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '@/api/auth';
 import { useAuthStore } from '@/stores/authStore';
-import type { LoginPayload, RegisterPayload, UpdateProfilePayload } from '@/types';
+import type { LoginPayload, RegisterPayload, UpdateProfilePayload, User } from '@/types';
+
+/** Where a user lands after signing in: students browse listings, brokers get their dashboard. */
+export const homeFor = (role: User['role']) => (role === 'owner' ? '/dashboard' : '/');
+
+/** Thrown when someone signs in as a student with a broker account, or vice versa. */
+export class RoleMismatchError extends Error {
+  constructor(public actualRole: User['role']) {
+    super('role-mismatch');
+  }
+}
 
 export function useLogin() {
   const { setAuth } = useAuthStore();
   return useMutation({
-    mutationFn: (payload: LoginPayload) => authApi.login(payload),
+    mutationFn: async ({ expectedRole, ...payload }: LoginPayload & { expectedRole?: User['role'] }) => {
+      const data = await authApi.login(payload);
+      if (expectedRole && data.data.user.role !== expectedRole) {
+        // Don't leave a session open for an account the user didn't mean to sign into
+        await authApi.logout(data.data.accessToken).catch(() => {});
+        throw new RoleMismatchError(data.data.user.role);
+      }
+      return data;
+    },
     onSuccess: (data) => {
       setAuth(data.data.user, data.data.accessToken);
     },

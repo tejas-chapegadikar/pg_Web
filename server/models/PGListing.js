@@ -13,6 +13,11 @@ const pgListingSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    propertyType: {
+      type: String,
+      enum: ['pg', 'flat'],
+      default: 'pg',
+    },
     title: {
       type: String,
       required: [true, 'Title is required'],
@@ -55,10 +60,17 @@ const pgListingSchema = new mongoose.Schema(
       enum: ['male', 'female', 'any'],
       required: [true, 'Gender preference is required'],
     },
+    // Sharing type only applies to PGs; flats are described by BHK instead
     roomType: {
       type: String,
       enum: ['single', 'double', 'triple', 'dormitory'],
-      required: [true, 'Room type is required'],
+      required: [function () { return this.propertyType !== 'flat'; }, 'Room type is required'],
+    },
+    bhk: {
+      type: Number,
+      min: [1, 'BHK must be at least 1'],
+      max: [10, 'BHK cannot exceed 10'],
+      required: [function () { return this.propertyType === 'flat'; }, 'BHK is required for flats'],
     },
     amenities: [
       {
@@ -111,6 +123,7 @@ const pgListingSchema = new mongoose.Schema(
 
 // Compound indexes for efficient filtering
 pgListingSchema.index({ 'location.city': 1 });
+pgListingSchema.index({ propertyType: 1 });
 pgListingSchema.index({ rent: 1 });
 pgListingSchema.index({ genderPreference: 1 });
 pgListingSchema.index({ isAvailable: 1 });

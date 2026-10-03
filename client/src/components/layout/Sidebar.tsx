@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import {
-  Home, Search, Heart, MessageSquare, LayoutDashboard,
+  Search, Heart, MessageSquare, LayoutDashboard,
   PlusCircle, Building2, Menu, X, LogOut, ChevronRight,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
@@ -18,8 +18,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Home', href: '/', icon: <Home className="h-4 w-4" />, role: 'any' },
-  { label: 'Browse PGs', href: '/pg', icon: <Search className="h-4 w-4" />, role: 'any' },
+  { label: 'Explore', href: '/', icon: <Search className="h-4 w-4" />, role: 'any' },
   { label: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" />, role: 'any' },
   { label: 'My Listings', href: '/dashboard/listings', icon: <Building2 className="h-4 w-4" />, role: 'owner' },
   { label: 'Add Listing', href: '/dashboard/listings/new', icon: <PlusCircle className="h-4 w-4" />, role: 'owner' },

@@ -62,15 +62,22 @@ export interface PGImage {
   publicId: string;
 }
 
+export type PropertyType = 'pg' | 'flat';
+
 export interface PGListing {
   _id: string;
+  /** Missing on listings created before flats existed — treat as 'pg' */
+  propertyType?: PropertyType;
   title: string;
   description: string;
   location: PGLocation;
   rent: number;
   deposit: number;
   genderPreference: 'male' | 'female' | 'any';
-  roomType: 'single' | 'double' | 'triple' | 'dormitory';
+  /** PGs only */
+  roomType?: 'single' | 'double' | 'triple' | 'dormitory';
+  /** Flats only */
+  bhk?: number;
   totalRooms: number;
   availableRooms: number;
   amenities: string[];
@@ -157,6 +164,11 @@ export interface PGListingsResponse {
 
 export interface PGFilters {
   city?: string;
+  /** Free-text search over name, address and city */
+  q?: string;
+  propertyType?: PropertyType;
+  /** '2' = exactly 2 BHK, '3+' = 3 or more */
+  bhk?: string;
   minRent?: number;
   maxRent?: number;
   genderPreference?: string;
@@ -173,13 +185,15 @@ export interface PGFilters {
 }
 
 export interface CreatePGPayload {
+  propertyType?: PropertyType;
   title: string;
   description: string;
   location: PGLocation;
   rent: number;
   deposit: number;
   genderPreference: 'male' | 'female' | 'any';
-  roomType: 'single' | 'double' | 'triple' | 'dormitory';
+  roomType?: 'single' | 'double' | 'triple' | 'dormitory';
+  bhk?: number;
   totalRooms: number;
   availableRooms: number;
   amenities: string[];
@@ -194,7 +208,9 @@ export interface Inquiry {
   student: User | string;
   message: string;
   phone: string;
-  status: 'pending' | 'responded' | 'closed';
+  /** Preferred day to visit (ISO, UTC midnight) */
+  visitDate?: string;
+  status: 'pending' | 'viewed' | 'responded' | 'closed';
   createdAt: string;
 }
 
@@ -202,6 +218,8 @@ export interface CreateInquiryPayload {
   pgId: string;
   message: string;
   phone: string;
+  /** YYYY-MM-DD */
+  visitDate?: string;
 }
 
 // Dashboard Types

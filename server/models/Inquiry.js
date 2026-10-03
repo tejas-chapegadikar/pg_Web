@@ -27,6 +27,15 @@ const inquirySchema = new mongoose.Schema(
       type: String,
       match: [/^\+?[0-9]{10,15}$/, 'Please enter a valid phone number'],
     },
+    // Optional day the student would like to see the place
+    visitDate: {
+      type: Date,
+      validate: {
+        // A day of slack so "today" is accepted whatever the client's timezone
+        validator: (d) => !d || d.getTime() >= Date.now() - 24 * 60 * 60 * 1000,
+        message: 'Visit date cannot be in the past',
+      },
+    },
     status: {
       type: String,
       enum: ['pending', 'viewed', 'responded', 'closed'],

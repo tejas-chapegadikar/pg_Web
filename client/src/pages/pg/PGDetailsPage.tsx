@@ -1,428 +1,691 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import {
-  MapPin, Wifi, Wind, Car, Utensils, Tv, Shield, Heart, Star,
-  ArrowLeft, BedDouble, MessageSquare, Phone, CheckCircle2, ExternalLink,
-} from 'lucide-react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import * as Dialog from '@radix-ui/react-dialog';
 import { Map, AdvancedMarker } from '@vis.gl/react-google-maps';
+import {
+  ArrowLeft,
+  BedDouble,
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  DoorOpen,
+  ExternalLink,
+  Heart,
+  ImageOff,
+  Images,
+  MapPin,
+  MessageCircle,
+  Pencil,
+  Phone,
+  Share2,
+  Star,
+  Users,
+  Wallet,
+  X,
+} from 'lucide-react';
 import { usePGListing } from '@/hooks/usePG';
-import { useToggleSave, useCreateInquiry, useSavedListings } from '@/hooks/useInquiry';
+import { useCreateInquiry, useSavedListings, useStudentInquiries, useToggleSave } from '@/hooks/useInquiry';
 import { useAuthStore } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
-import { Button } from '@/components/ui/Button';
-import { Input, Textarea } from '@/components/ui/Input';
-import { Badge, Skeleton } from '@/components/ui';
+import { cn, formatDate, getInitials } from '@/lib/utils';
 import { ReviewSection } from '@/components/pg/ReviewSection';
-import { formatCurrency } from '@/lib/utils';
-import type { CreateInquiryPayload } from '@/types';
+import { amenityMeta, formatRent, genderLabel, roomLabel, typeLabel, typeOf } from '@/components/listing/meta';
+import type { Inquiry, PGImage, PGListing, User } from '@/types';
 
-const amenityIcons: Record<string, React.ReactNode> = {
-  wifi: <Wifi className="h-4 w-4" />,
-  ac: <Wind className="h-4 w-4" />,
-  parking: <Car className="h-4 w-4" />,
-  meals: <Utensils className="h-4 w-4" />,
-  tv: <Tv className="h-4 w-4" />,
-  security: <Shield className="h-4 w-4" />,
-};
+const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+const mapsEnabled = Boolean(MAPS_KEY && MAPS_KEY !== 'YOUR_GOOGLE_MAPS_API_KEY_HERE');
 
-const inquirySchema = z.object({
-  message: z.string().min(10, 'Message must be at least 10 characters'),
-  phone: z.string().min(10, 'Enter a valid phone number'),
-});
-type InquiryFormData = z.infer<typeof inquirySchema>;
+/** Visit dates are stored as UTC midnight, so format in UTC to keep the chosen day */
+const formatVisitDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 export function PGDetailsPage() {
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading } = usePGListing(id!);
-  const toggleSave = useToggleSave();
-  const createInquiry = useCreateInquiry();
-  const { isAuthenticated, user } = useAuthStore();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { data, isLoading, isError } = usePGListing(id!);
+  const { user } = useAuthStore();
   const { addToast } = useUIStore();
-  const [showInquiryForm, setShowInquiryForm] = useState(false);
-  const [inquirySent, setInquirySent] = useState(false);
-  const [activeImage, setActiveImage] = useState(0);
+  const isStudent = user?.role === 'student';
 
-  const { data: savedData } = useSavedListings({
-    enabled: isAuthenticated && user?.role === 'student',
-  });
-  const savedListings = savedData?.data?.saved ?? [];
-  const isSaved = savedListings.some((item: any) => item.pg?._id === id);
+  const toggleSave = useToggleSave();
+  const { data: savedData } = useSavedListings({ enabled: isStudent });
+  const isSaved = (savedData?.data?.saved ?? []).some((s: { pg?: { _id: string } }) => s.pg?._id === id);
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<InquiryFormData>({
-    resolver: zodResolver(inquirySchema),
-    defaultValues: {
-      // Pre-fill phone from user profile — strip non-digits then reformat
-      phone: user?.phone ?? '',
-      message: '',
-    },
-  });
+  const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
 
   const pg = data?.data.pg;
 
-  const onInquiry = async (formData: InquiryFormData) => {
-    if (!id) return;
+  // Came from inside the app → go back (keeps their filters); opened directly → go to listings
+  const goBack = () => (location.key !== 'default' ? navigate(-1) : navigate('/'));
+
+  const share = async () => {
     try {
-      await createInquiry.mutateAsync({ pgId: id, ...formData } as CreateInquiryPayload);
-      reset();
-      setShowInquiryForm(false);
-      setInquirySent(true);
+      await navigator.clipboard.writeText(window.location.href);
+      addToast({ title: 'Link copied', variant: 'success' });
     } catch {
-      addToast({ title: 'Failed to send inquiry', variant: 'destructive' });
+      addToast({ title: 'Couldn’t copy the link', variant: 'destructive' });
     }
   };
 
-  if (isLoading) {
+  if (isLoading) return <DetailsSkeleton />;
+
+  if (isError || !pg) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-80 w-full rounded-2xl" />
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-4">
-            <Skeleton className="h-8 w-3/4" />
-            <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="h-32 w-full" />
-          </div>
-          <Skeleton className="h-64 w-full" />
-        </div>
+      <div className="flex flex-col items-center rounded-[28px] bg-surface px-6 py-20 text-center">
+        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white">
+          <ImageOff className="h-6 w-6" />
+        </span>
+        <h1 className="mt-4 text-lg font-semibold">This place isn’t available</h1>
+        <p className="mt-1 text-sm text-muted">It may have been removed by the broker.</p>
+        <Link to="/" className="mt-5 inline-flex h-11 items-center rounded-2xl bg-ink px-5 text-sm font-medium text-white">
+          Browse listings
+        </Link>
       </div>
     );
   }
 
-  if (!pg) return (
-    <div className="py-20 text-center">
-      <p className="text-slate-500">PG not found.</p>
-      <Link to="/pg" className="mt-4 inline-block text-blue-600 hover:underline font-semibold">← Back to listings</Link>
-    </div>
-  );
+  const owner = typeof pg.owner === 'object' ? pg.owner : undefined;
+  const isOwnListing = Boolean(owner && user && owner._id === user._id);
 
   return (
     <div className="animate-fade-in">
-      {/* Back */}
-      <Link to="/pg" className="mb-6 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 transition-colors font-medium">
-        <ArrowLeft className="h-4 w-4" /> Back to listings
-      </Link>
-
-      {/* Image Gallery */}
-      <div className="mb-6 overflow-hidden rounded-2xl border border-slate-100 bg-white premium-shadow">
-        <div className="relative h-72 bg-slate-50 lg:h-96">
-          {pg.images?.[activeImage] ? (
-            <>
-              <img
-                src={pg.images[activeImage].url}
-                alt={pg.title}
-                className="h-full w-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                }}
-              />
-              <div className="hidden absolute inset-0 flex items-center justify-center bg-slate-100">
-                <BedDouble className="h-20 w-20 text-slate-200" />
-              </div>
-            </>
-          ) : (
-            <div className="flex h-full items-center justify-center bg-slate-100">
-              <BedDouble className="h-20 w-20 text-slate-200" />
-            </div>
+      {/* ── Top bar ── */}
+      <div className="mb-5 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={goBack}
+          className="flex h-11 items-center gap-2 rounded-2xl bg-surface pl-3 pr-4 text-sm font-medium transition-colors hover:bg-[#ebebee]"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back
+        </button>
+        <div className="flex gap-2">
+          <IconButton label="Copy link" onClick={share}>
+            <Share2 className="h-[18px] w-[18px]" />
+          </IconButton>
+          {isStudent && (
+            <IconButton id="save-pg-btn" label={isSaved ? 'Remove from saved' : 'Save'} pressed={isSaved} onClick={() => toggleSave.mutate(pg._id)}>
+              <Heart className={cn('h-[18px] w-[18px]', isSaved && 'fill-red-500 text-red-500')} />
+            </IconButton>
           )}
         </div>
-        {pg.images?.length > 1 && (
-          <div className="flex gap-2 overflow-x-auto border-t border-slate-100 bg-slate-50 p-3 scrollbar-hide">
-            {pg.images.map((img, i) => (
-              <button
-                key={img.publicId}
-                onClick={() => setActiveImage(i)}
-                className={`shrink-0 h-16 w-24 overflow-hidden rounded-lg border-2 transition-all ${i === activeImage ? 'border-blue-600' : 'border-transparent'}`}
-              >
-                <img src={img.url} alt="" className="h-full w-full object-cover" />
-              </button>
-            ))}
-          </div>
+      </div>
+
+      <Gallery pg={pg} onOpen={setGalleryIndex} />
+
+      {/* ── Title ── */}
+      <div className="mt-6 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-[26px] font-semibold leading-tight tracking-tight sm:text-[28px]">{pg.title}</h1>
+          <p className="mt-1.5 flex items-center gap-1.5 text-sm capitalize text-muted">
+            <MapPin className="h-4 w-4 shrink-0" />
+            {pg.location.address}, {pg.location.city}, {pg.location.state} {pg.location.pincode}
+          </p>
+        </div>
+        {Boolean(pg.ratingAverage) && (
+          <a href="#reviews" className="flex shrink-0 items-center gap-2 rounded-2xl bg-surface py-1.5 pl-1.5 pr-3 text-sm">
+            <span className="flex items-center gap-1 rounded-xl bg-accent px-2 py-1 font-semibold text-white">
+              <Star className="h-3.5 w-3.5 fill-current" />
+              {pg.ratingAverage?.toFixed(1)}
+            </span>
+            <span className="text-muted">
+              {pg.numReviews} review{pg.numReviews === 1 ? '' : 's'}
+            </span>
+          </a>
         )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Info */}
-        <div className="lg:col-span-2 space-y-6">
-          <div>
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <Badge variant={pg.availableRooms > 0 ? 'success' : 'destructive'}>
-                {pg.availableRooms > 0 ? `${pg.availableRooms} rooms available` : 'No rooms available'}
-              </Badge>
-              <Badge variant="default">{pg.roomType} room</Badge>
-              <Badge variant="outline">{pg.genderPreference === 'any' ? 'Co-ed' : pg.genderPreference === 'male' ? 'Males only' : 'Females only'}</Badge>
-              {Boolean(pg.ratingAverage) && (
-                <div className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-xs font-bold text-amber-700 shadow-sm">
-                  <Star className="h-3.5 w-3.5 fill-current text-amber-400" />
-                  {pg.ratingAverage} ({pg.numReviews ?? 0} review{pg.numReviews !== 1 ? 's' : ''})
-                </div>
-              )}
-            </div>
-            <h1 className="text-4xl font-extrabold text-slate-900 mb-2 tracking-tight">{pg.title}</h1>
-            <div className="flex items-center gap-2 text-slate-500 font-medium">
-              <MapPin className="h-4 w-4" />
-              <span>{pg.location.address}, {pg.location.city}, {pg.location.state} - {pg.location.pincode}</span>
-            </div>
+      <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_380px]">
+        {/* On phones the price + request card comes straight after the title */}
+        <aside className="lg:order-last">
+          <div className="space-y-4 lg:sticky lg:top-24">
+            <PriceCard pg={pg} isOwnListing={isOwnListing} />
+            {owner && <BrokerCard pg={pg} owner={owner} showContact={isStudent} />}
           </div>
+        </aside>
 
-          {/* Description */}
-          <div className="rounded-2xl border border-slate-100 bg-white p-6 premium-shadow">
-            <h2 className="mb-3 font-bold text-slate-800 text-lg">About this PG</h2>
-            <p className="text-sm leading-relaxed text-slate-600">{pg.description}</p>
-          </div>
-
-          {/* Amenities */}
-          <div className="rounded-2xl border border-slate-100 bg-white p-6 premium-shadow">
-            <h2 className="mb-3 font-bold text-slate-800 text-lg">Amenities</h2>
-            <div className="flex flex-wrap gap-2">
-              {pg.amenities.map((a) => (
-                <span key={a} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm font-medium text-slate-700">
-                  {amenityIcons[a] || null}
-                  {a.charAt(0).toUpperCase() + a.slice(1)}
-                </span>
-              ))}
+        <div className="min-w-0 space-y-10">
+          <section>
+            <SectionTitle>What you get</SectionTitle>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Fact icon={BedDouble} label={roomLabel(pg)} />
+              <Fact icon={Users} label={genderLabel(pg)} />
+              <Fact
+                icon={DoorOpen}
+                label={
+                  pg.availableRooms <= 0
+                    ? 'Currently full'
+                    : typeOf(pg) === 'flat'
+                      ? 'Available now'
+                      : `${pg.availableRooms} of ${pg.totalRooms} rooms free`
+                }
+              />
+              <Fact icon={Wallet} label={pg.deposit ? `${formatRent(pg.deposit)} deposit` : 'No deposit'} />
             </div>
-          </div>
+          </section>
 
-          {/* Location Map */}
-          {pg.location.coordinates?.lat && pg.location.coordinates?.lng ? (
-            (() => {
-              const lat = pg.location.coordinates.lat;
-              const lng = pg.location.coordinates.lng;
-              const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
-              const mapsEnabled = apiKey && apiKey !== 'YOUR_GOOGLE_MAPS_API_KEY_HERE';
-              return (
-                <div className="rounded-2xl border border-slate-100 bg-white premium-shadow overflow-hidden">
-                   {/* Map header */}
-                  <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-2.5">
-                    <MapPin className="h-4 w-4 shrink-0 text-blue-600" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-slate-800 truncate">{pg.location.address}</p>
-                      <p className="text-[11px] text-slate-500">{pg.location.city}, {pg.location.state} – {pg.location.pincode}</p>
+          <section>
+            <SectionTitle>About this {typeOf(pg) === 'flat' ? 'flat' : 'PG'}</SectionTitle>
+            <ExpandableText text={pg.description} />
+          </section>
+
+          {pg.amenities.length > 0 && (
+            <section>
+              <SectionTitle>Facilities</SectionTitle>
+              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                {pg.amenities.map((a) => {
+                  const { label, icon: Icon } = amenityMeta(a);
+                  return (
+                    <div key={a} className="flex items-center gap-3 rounded-2xl border border-black/[0.06] p-3 text-sm">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      {label}
                     </div>
-                  </div>
-
-                  {/* Map */}
-                  <div className="relative" style={{ height: 320 }}>
-                    {mapsEnabled ? (
-                      <Map
-                        defaultCenter={{ lat, lng }}
-                        defaultZoom={16}
-                        mapId="pg-detail-map"
-                        mapTypeId="roadmap"
-                        gestureHandling="greedy"
-                        disableDefaultUI={true}
-                        style={{ width: '100%', height: '100%' }}
-                      >
-
-                        <AdvancedMarker
-                          position={{ lat, lng }}
-                          title={pg.title}
-                        />
-                      </Map>
-                    ) : (
-                      <iframe
-                        title="PG Location Map"
-                        style={{ width: '100%', height: '100%', border: 0 }}
-                        loading="lazy"
-                        referrerPolicy="no-referrer-when-downgrade"
-                        src={`https://www.google.com/maps?q=${lat},${lng}&z=16&output=embed`}
-                      />
-                    )}
-                  </div>
-
-                  {/* Open in Google Maps footer */}
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 border-t border-slate-100 bg-slate-50 py-2.5 text-xs font-semibold text-slate-500 transition-colors hover:bg-blue-50 hover:text-blue-600"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    Open in Google Maps
-                  </a>
-                </div>
-              );
-            })()
-
-          ) : (
-            <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-4 premium-shadow">
-              <MapPin className="h-5 w-5 shrink-0 text-blue-600" />
-              <div>
-                <p className="text-sm font-bold text-slate-800">{pg.location.address}</p>
-                <p className="text-xs text-slate-500">{pg.location.city}, {pg.location.state} – {pg.location.pincode}</p>
+                  );
+                })}
               </div>
-            </div>
+            </section>
           )}
 
-          {/* Student Reviews & Ratings */}
-          <ReviewSection pgId={id!} />
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-4">
-          {/* Pricing Card */}
-          <div className="rounded-2xl border border-slate-100 bg-white p-6 premium-shadow sticky top-24">
-            <div className="mb-4 text-center">
-              <div className="text-4xl font-black text-slate-900">{formatCurrency(pg.rent)}</div>
-              <div className="text-sm text-slate-500">per month</div>
-            </div>
-            <div className="mb-4 flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-sm border border-slate-100">
-              <span className="text-slate-500 font-medium">Security Deposit</span>
-              <span className="font-bold text-slate-800">{formatCurrency(pg.deposit)}</span>
-            </div>
-
-            {/* Rent Breakdown */}
-            {(() => {
-              const ext = pg as unknown as { rentIncludes?: string[]; additionalCharges?: string };
-              const included = ext.rentIncludes ?? [];
-              const extras = ext.additionalCharges;
-              if (included.length === 0 && !extras) return (
-                <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
-                  ⚠ Owner hasn't specified what's included. Ask before signing.
-                </div>
-              );
-              return (
-                <div className="mb-4 space-y-2">
-                  {included.length > 0 && (
-                    <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2.5">
-                      <p className="text-xs font-bold text-emerald-700 mb-1.5">✓ Included in rent</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {included.map((item: string) => (
-                          <span key={item} className="rounded-md bg-emerald-100 px-2 py-0.5 text-xs capitalize text-emerald-800 font-medium">{item}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {extras && (
-                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5">
-                      <p className="text-xs font-semibold text-slate-500 mb-1">Additional charges</p>
-                      <p className="text-xs text-slate-650 leading-relaxed">{extras}</p>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
-            <div className="mb-4 flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-sm border border-slate-100">
-              <span className="text-slate-500 font-medium">Total Rooms</span>
-              <span className="font-bold text-slate-800">{pg.totalRooms}</span>
-            </div>
-            <div className="space-y-2">
-              {isAuthenticated && user?.role === 'student' && !inquirySent && (
-                <Button
-                  className="w-full"
-                  onClick={() => setShowInquiryForm(!showInquiryForm)}
-                  id="inquiry-toggle"
-                >
-                  <MessageSquare className="h-4 w-4" />
-                  {showInquiryForm ? 'Cancel' : 'Send Inquiry'}
-                </Button>
-              )}
-              {inquirySent && (
-                <div className="flex items-start gap-2.5 rounded-xl border border-emerald-150 bg-emerald-50 px-4 py-3">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                  <div>
-                    <p className="text-sm font-bold text-emerald-800">Inquiry submitted!</p>
-                    <p className="mt-0.5 text-xs text-emerald-700/80">The owner will see your inquiry when they check their dashboard. You can track it in <a href="/dashboard/inquiries" className="underline hover:text-emerald-900">My Inquiries</a>.</p>
+          <section>
+            <SectionTitle>What’s included in the rent</SectionTitle>
+            {(pg.rentIncludes?.length ?? 0) === 0 && !pg.additionalCharges ? (
+              <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                The broker hasn’t listed what the rent covers. Ask about electricity, meals and Wi-Fi when you request a visit.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {(pg.rentIncludes?.length ?? 0) > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {pg.rentIncludes!.map((item) => (
+                      <span key={item} className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-[13px] font-medium capitalize text-emerald-800">
+                        <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                        {item}
+                      </span>
+                    ))}
                   </div>
-                </div>
-              )}
-              {isAuthenticated && user?.role === 'student' && (
-                <Button
-                  variant={isSaved ? "default" : "outline"}
-                  className={`w-full transition-all duration-200 ${isSaved ? 'bg-red-50 hover:bg-red-100 text-red-600 border-red-100 hover:border-red-200' : ''}`}
-                  onClick={() => toggleSave.mutate(pg._id)}
-                  id="save-pg-btn"
-                >
-                  <Heart className={`h-4 w-4 ${isSaved ? 'fill-current text-red-500' : ''}`} />
-                  {isSaved ? 'Saved ✓' : 'Save Listing'}
-                </Button>
-              )}
-              {!isAuthenticated && (
-                <Link to="/login" className="block w-full">
-                  <Button className="w-full" id="login-to-inquire">
-                    Sign in to Inquire
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </div>
-
-          {/* Inquiry Form */}
-          {showInquiryForm && (
-            <div className="rounded-2xl border border-slate-100 bg-white p-6 premium-shadow animate-fade-in">
-              <h3 className="mb-4 font-bold text-slate-800">Send Inquiry</h3>
-              <form onSubmit={handleSubmit(onInquiry)} className="space-y-3" id="inquiry-form">
-                <Textarea
-                  id="inquiry-message"
-                  label="Your Message"
-                  placeholder="I'm interested in this PG, I'd like to know more about..."
-                  rows={4}
-                  error={errors.message?.message}
-                  {...register('message')}
-                />
-                <Input
-                  id="inquiry-phone"
-                  label="Phone Number"
-                  placeholder="+91 98765 43210"
-                  icon={<Phone className="h-4 w-4" />}
-                  error={errors.phone?.message}
-                  readOnly={!!user?.phone}
-                  className={user?.phone ? 'opacity-75 cursor-not-allowed' : ''}
-                  {...register('phone')}
-                />
-                {user?.phone && (
-                  <p className="-mt-1 text-xs text-slate-400">Auto-filled from your profile</p>
                 )}
-                <Button
-                  type="submit"
-                  className="w-full"
-                  loading={createInquiry.isPending}
-                  id="send-inquiry"
-                >
-                  Send Inquiry
-                </Button>
-              </form>
-            </div>
-          )}
-
-          {/* Owner info */}
-          {typeof pg.owner === 'object' && (
-            <div className="rounded-2xl border border-slate-100 bg-white p-6 premium-shadow">
-              <h3 className="mb-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Listed by</h3>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-bold text-sm">
-                  {pg.owner.name?.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <p className="font-bold text-slate-800">{pg.owner.name}</p>
-                  <p className="text-xs text-slate-500">PG Owner</p>
-                </div>
+                {pg.additionalCharges && (
+                  <p className="text-sm text-muted">
+                    <span className="font-medium text-ink">Extra charges: </span>
+                    {pg.additionalCharges}
+                  </p>
+                )}
               </div>
-              {/* WhatsApp quick contact — only visible to authenticated students */}
-              {isAuthenticated && user?.role === 'student' && pg.owner.phone && (
-                <a
-                  href={`https://wa.me/${pg.owner.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi, I saw your PG listing "${pg.title}" on Anei Ghar and I'm interested. Could you share more details?`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  id="whatsapp-owner"
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-250 bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-700 transition-all hover:border-emerald-300 hover:bg-emerald-100/60"
-                >
-                  <Phone className="h-4 w-4" />
-                  WhatsApp Owner
-                </a>
-              )}
-            </div>
-          )}
+            )}
+          </section>
+
+          <section>
+            <SectionTitle>Location</SectionTitle>
+            <LocationMap pg={pg} />
+          </section>
+
+          <section id="reviews" className="scroll-mt-24">
+            <ReviewSection pgId={pg._id} />
+          </section>
         </div>
+      </div>
+
+      <Lightbox images={pg.images} index={galleryIndex} onIndexChange={setGalleryIndex} title={pg.title} />
+    </div>
+  );
+}
+
+/* ─── Gallery ─────────────────────────────────────────────────────────── */
+
+function Gallery({ pg, onOpen }: { pg: PGListing; onOpen: (i: number) => void }) {
+  const images = pg.images ?? [];
+  const side = images.slice(1, 3);
+  const hiddenCount = images.length - 3;
+
+  if (images.length === 0) {
+    return (
+      <div className="flex h-[260px] flex-col items-center justify-center rounded-[28px] bg-surface text-muted sm:h-[380px]">
+        <ImageOff className="h-8 w-8" />
+        <p className="mt-2 text-sm">No photos yet</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn('grid h-[280px] grid-rows-[minmax(0,1fr)] gap-3 sm:h-[400px] lg:h-[460px]', side.length > 0 && 'lg:grid-cols-[2fr_1fr]')}>
+      <button
+        type="button"
+        onClick={() => onOpen(0)}
+        className="group relative overflow-hidden rounded-[28px] bg-surface"
+        aria-label="View photos"
+      >
+        <img src={images[0].url} alt={pg.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" />
+        <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-xs font-medium backdrop-blur-md">
+          {typeLabel(typeOf(pg))}
+        </span>
+        {images.length > 1 && (
+          <span className="absolute bottom-4 right-4 flex items-center gap-1.5 rounded-xl bg-white/90 px-3 py-1.5 text-[13px] font-medium backdrop-blur-md">
+            <Images className="h-4 w-4" />
+            {images.length} photos
+          </span>
+        )}
+      </button>
+
+      {side.length > 0 && (
+        <div className={cn('hidden min-h-0 gap-3 lg:grid', side.length === 2 ? 'grid-rows-[repeat(2,minmax(0,1fr))]' : 'grid-rows-[minmax(0,1fr)]')}>
+          {side.map((img, i) => (
+            <button
+              key={img.publicId}
+              type="button"
+              onClick={() => onOpen(i + 1)}
+              className="group relative overflow-hidden rounded-[22px] bg-surface"
+              aria-label={`View photo ${i + 2}`}
+            >
+              <img src={img.url} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
+              {i === side.length - 1 && hiddenCount > 0 && (
+                <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-2xl font-semibold text-white">
+                  +{hiddenCount}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Lightbox({
+  images,
+  index,
+  onIndexChange,
+  title,
+}: {
+  images: PGImage[];
+  index: number | null;
+  onIndexChange: (i: number | null) => void;
+  title: string;
+}) {
+  const open = index !== null && images.length > 0;
+  const i = index ?? 0;
+  const step = (d: number) => onIndexChange((i + d + images.length) % images.length);
+
+  return (
+    <Dialog.Root open={open} onOpenChange={(o) => !o && onIndexChange(null)}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/90 animate-fade-in" />
+        <Dialog.Content
+          className="fixed inset-0 z-50 flex flex-col font-display text-white outline-none"
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowRight') step(1);
+            if (e.key === 'ArrowLeft') step(-1);
+          }}
+        >
+          <div className="flex items-center justify-between p-4">
+            <Dialog.Title className="truncate text-sm font-medium">{title}</Dialog.Title>
+            <Dialog.Description className="sr-only">Photo gallery</Dialog.Description>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-white/70">
+                {i + 1} / {images.length}
+              </span>
+              <Dialog.Close aria-label="Close" className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 hover:bg-white/20">
+                <X className="h-5 w-5" />
+              </Dialog.Close>
+            </div>
+          </div>
+          <div className="relative flex flex-1 items-center justify-center px-4 pb-6 sm:px-20">
+            {open && <img src={images[i].url} alt="" className="max-h-full max-w-full rounded-2xl object-contain" />}
+            {images.length > 1 && (
+              <>
+                <button type="button" aria-label="Previous photo" onClick={() => step(-1)} className="absolute left-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 hover:bg-white/20">
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <button type="button" aria-label="Next photo" onClick={() => step(1)} className="absolute right-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 hover:bg-white/20">
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </>
+            )}
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+/* ─── Price + request ─────────────────────────────────────────────────── */
+
+function PriceCard({ pg, isOwnListing }: { pg: PGListing; isOwnListing: boolean }) {
+  const { user } = useAuthStore();
+  const isStudent = user?.role === 'student';
+  const { data: myRequests } = useStudentInquiries({ enabled: isStudent });
+  const previous = ((myRequests?.data?.inquiries ?? []) as Inquiry[]).find(
+    (inq) => typeof inq.pg === 'object' && inq.pg?._id === pg._id
+  );
+  const [composing, setComposing] = useState(false);
+  const [sent, setSent] = useState<Inquiry | null>(null);
+
+  const done = sent ?? (composing ? null : previous);
+
+  return (
+    <div className="rounded-[28px] border border-black/[0.06] bg-white p-6 shadow-[0_24px_60px_-36px_rgba(17,17,17,0.35)]">
+      <p className="text-[13px] text-muted">Monthly rent</p>
+      <p className="mt-0.5 text-[28px] font-semibold tracking-tight text-accent">
+        {formatRent(pg.rent)}
+        <span className="text-sm font-normal text-muted"> / month</span>
+      </p>
+
+      <dl className="mt-4 divide-y divide-black/[0.06] rounded-2xl bg-surface px-4 text-sm">
+        <div className="flex justify-between py-3">
+          <dt className="text-muted">Deposit</dt>
+          <dd className="font-medium">{pg.deposit ? formatRent(pg.deposit) : 'None'}</dd>
+        </div>
+        <div className="flex justify-between py-3">
+          <dt className="text-muted">Availability</dt>
+          <dd className={cn('font-medium', pg.availableRooms <= 0 && 'text-red-600')}>
+            {pg.availableRooms <= 0 ? 'Full right now' : typeOf(pg) === 'flat' ? 'Available' : `${pg.availableRooms} rooms free`}
+          </dd>
+        </div>
+      </dl>
+
+      <div className="mt-5">
+        {isStudent ? (
+          done ? (
+            <RequestSent inquiry={done} justSent={Boolean(sent)} onAgain={() => { setSent(null); setComposing(true); }} />
+          ) : composing ? (
+            <RequestForm pg={pg} onCancel={() => setComposing(false)} onSent={(inq) => { setSent(inq); setComposing(false); }} />
+          ) : (
+            <button
+              type="button"
+              id="request-visit-btn"
+              onClick={() => setComposing(true)}
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-ink text-sm font-medium text-white transition-colors hover:bg-black/85"
+            >
+              <CalendarDays className="h-4 w-4" />
+              Request a visit
+            </button>
+          )
+        ) : isOwnListing ? (
+          <Link
+            to={`/dashboard/listings/${pg._id}/edit`}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-ink text-sm font-medium text-white transition-colors hover:bg-black/85"
+          >
+            <Pencil className="h-4 w-4" />
+            Edit your listing
+          </Link>
+        ) : (
+          <p className="rounded-2xl bg-surface px-4 py-3 text-[13px] text-muted">Students can request a visit from this page.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const todayLocal = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in the user's timezone
+const stripPhone = (v: string) => v.replace(/[\s-]/g, '');
+
+const requestSchema = z.object({
+  message: z.string().trim().min(10, 'Add a few more words (at least 10 characters)').max(500, 'Keep it under 500 characters'),
+  phone: z.string().refine((v) => /^\+?[0-9]{10,15}$/.test(stripPhone(v)), 'Enter a valid 10-digit phone number'),
+  visitDate: z
+    .string()
+    .optional()
+    .refine((v) => !v || v >= todayLocal(), 'Pick today or a later date'),
+});
+type RequestData = z.infer<typeof requestSchema>;
+
+function RequestForm({ pg, onSent, onCancel }: { pg: PGListing; onSent: (inq: Inquiry) => void; onCancel: () => void }) {
+  const { user } = useAuthStore();
+  const createInquiry = useCreateInquiry();
+  const brokerName = typeof pg.owner === 'object' ? pg.owner.name?.split(' ')[0] : undefined;
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<RequestData>({
+    resolver: zodResolver(requestSchema),
+    defaultValues: {
+      message: `Hi${brokerName ? ` ${brokerName}` : ''}, I’m interested in ${pg.title}. Is it still available? I’d like to come and see it.`,
+      phone: user?.phone ?? '',
+      visitDate: '',
+    },
+  });
+
+  const onSubmit = async ({ message, phone, visitDate }: RequestData) => {
+    try {
+      const res = await createInquiry.mutateAsync({
+        pgId: pg._id,
+        message: message.trim(),
+        phone: stripPhone(phone),
+        visitDate: visitDate || undefined,
+      });
+      onSent(res.data.inquiry);
+    } catch {
+      // Shown below via createInquiry.isError
+    }
+  };
+
+  const inputClass =
+    'w-full rounded-2xl border border-transparent bg-surface px-4 text-sm outline-none transition-all placeholder:text-muted/80 focus:border-black/10 focus:bg-white focus:ring-4 focus:ring-black/[0.04]';
+
+  return (
+    <form id="request-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div>
+        <label htmlFor="request-visit-date" className="mb-1.5 block text-[13px] font-medium">
+          Preferred visit date <span className="font-normal text-muted">(optional)</span>
+        </label>
+        <input id="request-visit-date" type="date" min={todayLocal()} className={cn(inputClass, 'h-12')} {...register('visitDate')} />
+        {errors.visitDate && <p className="mt-1.5 text-xs text-red-500">{errors.visitDate.message}</p>}
+      </div>
+      <div>
+        <label htmlFor="request-phone" className="mb-1.5 block text-[13px] font-medium">
+          Your phone number
+        </label>
+        <div className="relative">
+          <Phone className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <input id="request-phone" type="tel" inputMode="tel" placeholder="98765 43210" className={cn(inputClass, 'h-12 pl-11')} {...register('phone')} />
+        </div>
+        {errors.phone && <p className="mt-1.5 text-xs text-red-500">{errors.phone.message}</p>}
+      </div>
+      <div>
+        <label htmlFor="request-message" className="mb-1.5 block text-[13px] font-medium">
+          Message to the broker
+        </label>
+        <textarea id="request-message" rows={4} className={cn(inputClass, 'resize-none py-3 leading-relaxed')} {...register('message')} />
+        {errors.message && <p className="mt-1.5 text-xs text-red-500">{errors.message.message}</p>}
+      </div>
+
+      {createInquiry.isError && (
+        <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
+          {(createInquiry.error as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+            'Couldn’t send your request. Please try again.'}
+        </p>
+      )}
+
+      <div className="flex gap-2">
+        <button type="button" onClick={onCancel} className="h-12 rounded-2xl px-4 text-sm font-medium transition-colors hover:bg-surface">
+          Cancel
+        </button>
+        <button
+          type="submit"
+          id="send-request-btn"
+          disabled={createInquiry.isPending}
+          className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-ink text-sm font-medium text-white transition-colors hover:bg-black/85 disabled:opacity-60"
+        >
+          {createInquiry.isPending && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />}
+          Send request
+        </button>
+      </div>
+      <p className="text-center text-xs text-muted">The broker gets your number and message, and replies directly.</p>
+    </form>
+  );
+}
+
+function RequestSent({ inquiry, justSent, onAgain }: { inquiry: Inquiry; justSent: boolean; onAgain: () => void }) {
+  return (
+    <div className="rounded-2xl bg-emerald-50 p-4">
+      <div className="flex items-start gap-3">
+        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+        <div className="text-sm">
+          <p className="font-semibold text-emerald-900">{justSent ? 'Request sent' : `You asked on ${formatDate(inquiry.createdAt)}`}</p>
+          <p className="mt-0.5 text-emerald-800/80">
+            {inquiry.visitDate ? `Preferred visit: ${formatVisitDate(inquiry.visitDate)}. ` : ''}
+            The broker will contact you on your phone.
+          </p>
+        </div>
+      </div>
+      <div className="mt-3 flex gap-4 pl-8 text-[13px] font-medium">
+        <Link to="/dashboard/inquiries" className="text-emerald-900 underline underline-offset-4">
+          My requests
+        </Link>
+        <button type="button" onClick={onAgain} className="text-emerald-900/70 hover:text-emerald-900">
+          Send another
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function BrokerCard({ pg, owner, showContact }: { pg: PGListing; owner: User; showContact: boolean }) {
+  const whatsapp = owner.phone
+    ? `https://wa.me/${owner.phone.replace(/\D/g, '').replace(/^(\d{10})$/, '91$1')}?text=${encodeURIComponent(
+        `Hi, I saw "${pg.title}" on Anei Ghar and I’m interested. Is it still available?`
+      )}`
+    : undefined;
+
+  return (
+    <div className="rounded-[28px] border border-black/[0.06] bg-white p-5">
+      <p className="text-[13px] text-muted">Listed by</p>
+      <div className="mt-3 flex items-center gap-3">
+        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-ink text-sm font-semibold text-white">
+          {getInitials(owner.name || '?')}
+        </span>
+        <div>
+          <p className="text-sm font-semibold">{owner.name}</p>
+          <p className="text-[13px] text-muted">Broker / Agent</p>
+        </div>
+      </div>
+      {showContact && whatsapp && (
+        <a
+          href={whatsapp}
+          target="_blank"
+          rel="noopener noreferrer"
+          id="whatsapp-owner"
+          className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-2xl border border-black/[0.08] text-sm font-medium transition-colors hover:bg-surface"
+        >
+          <MessageCircle className="h-4 w-4" />
+          Chat on WhatsApp
+        </a>
+      )}
+    </div>
+  );
+}
+
+/* ─── Small pieces ────────────────────────────────────────────────────── */
+
+function LocationMap({ pg }: { pg: PGListing }) {
+  const { lat, lng } = pg.location.coordinates ?? {};
+  const hasPin = typeof lat === 'number' && typeof lng === 'number';
+  const query = hasPin ? `${lat},${lng}` : encodeURIComponent(`${pg.location.address}, ${pg.location.city}, ${pg.location.state}`);
+
+  return (
+    <div className="overflow-hidden rounded-[24px] border border-black/[0.06]">
+      <div className="h-72 bg-surface">
+        {hasPin && mapsEnabled ? (
+          <Map defaultCenter={{ lat, lng }} defaultZoom={15} mapId="pg-detail-map" gestureHandling="cooperative" disableDefaultUI style={{ width: '100%', height: '100%' }}>
+            <AdvancedMarker position={{ lat, lng }} title={pg.title} />
+          </Map>
+        ) : (
+          // Keyless embed so the map still works without a Google Maps API key
+          <iframe
+            title="Map"
+            className="h-full w-full border-0"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            src={`https://www.google.com/maps?q=${query}&z=15&output=embed`}
+          />
+        )}
+      </div>
+      <div className="flex items-center justify-between gap-3 px-4 py-3">
+        <p className="truncate text-[13px] capitalize text-muted">
+          {pg.location.address}, {pg.location.city}
+        </p>
+        <a
+          href={`https://www.google.com/maps/search/?api=1&query=${query}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex shrink-0 items-center gap-1.5 text-[13px] font-medium hover:underline"
+        >
+          Open in Maps <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function ExpandableText({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const long = text.length > 280;
+  return (
+    <div>
+      <p className={cn('whitespace-pre-line text-sm leading-relaxed text-muted', long && !expanded && 'line-clamp-4')}>{text}</p>
+      {long && (
+        <button type="button" onClick={() => setExpanded((e) => !e)} className="mt-2 text-sm font-medium underline underline-offset-4">
+          {expanded ? 'Show less' : 'Read more'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <h2 className="mb-4 text-lg font-semibold tracking-tight">{children}</h2>;
+}
+
+function Fact({ icon: Icon, label }: { icon: React.ComponentType<{ className?: string }>; label: string }) {
+  return (
+    <div className="rounded-2xl border border-black/[0.06] p-4">
+      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface">
+        <Icon className="h-[18px] w-[18px]" />
+      </span>
+      <p className="mt-3 text-sm font-medium">{label}</p>
+    </div>
+  );
+}
+
+function IconButton({
+  label,
+  pressed,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { label: string; pressed?: boolean }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={pressed}
+      title={label}
+      className="flex h-11 w-11 items-center justify-center rounded-2xl bg-surface transition-colors hover:bg-[#ebebee]"
+      {...props}
+    />
+  );
+}
+
+function DetailsSkeleton() {
+  return (
+    <div>
+      <div className="mb-5 h-11 w-24 animate-pulse rounded-2xl bg-surface" />
+      <div className="h-[280px] animate-pulse rounded-[28px] bg-surface sm:h-[400px] lg:h-[460px]" />
+      <div className="mt-6 h-8 w-2/3 animate-pulse rounded-full bg-surface" />
+      <div className="mt-3 h-4 w-1/2 animate-pulse rounded-full bg-surface" />
+      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_380px]">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-28 animate-pulse rounded-2xl bg-surface" />
+          ))}
+        </div>
+        <div className="h-64 animate-pulse rounded-[28px] bg-surface" />
       </div>
     </div>
   );

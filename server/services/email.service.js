@@ -60,9 +60,14 @@ exports.sendInquiryNotification = async ({
   studentPhone,
   pgTitle,
   message,
+  visitDate,
 }) => {
   const subject = `New Inquiry for your PG: ${pgTitle}`;
-  const text = `Hi ${ownerName || 'Owner'},\n\nYou have received a new inquiry for your listing "${pgTitle}" on Anei Ghar.\n\nDetails:\n- Student Name: ${studentName}\n- Contact Number: ${studentPhone}\n- Message: "${message}"\n\nPlease log in to your dashboard to view and manage your inquiries.\n\nBest,\nThe Anei Ghar Team`;
+  // Stored as a calendar day at UTC midnight, so format in UTC to keep the same day
+  const visitLabel = visitDate
+    ? new Date(visitDate).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+    : null;
+  const text = `Hi ${ownerName || 'Owner'},\n\nYou have received a new inquiry for your listing "${pgTitle}" on Anei Ghar.\n\nDetails:\n- Student Name: ${studentName}\n- Contact Number: ${studentPhone}\n- Message: "${message}"\n${visitLabel ? `- Preferred visit: ${visitLabel}\n` : ''}\nPlease log in to your dashboard to view and manage your inquiries.\n\nBest,\nThe Anei Ghar Team`;
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
       <h2 style="color: #6d28d9;">New Inquiry Received!</h2>
@@ -82,7 +87,11 @@ exports.sendInquiryNotification = async ({
           <tr>
             <td style="padding: 5px 0; color: #666; vertical-align: top;"><strong>Message:</strong></td>
             <td style="padding: 5px 0; color: #333; font-style: italic;">"${message}"</td>
-          </tr>
+          </tr>${visitLabel ? `
+          <tr>
+            <td style="padding: 5px 0; color: #666;"><strong>Visit:</strong></td>
+            <td style="padding: 5px 0; color: #333;">${visitLabel}</td>
+          </tr>` : ''}
         </table>
       </div>
       <p>Please log in to your dashboard to manage this inquiry and update its status.</p>

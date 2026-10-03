@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui';
 import { Select } from '@/components/ui/Input';
 import { formatDate } from '@/lib/utils';
-import { MessageSquare, Phone, Clock } from 'lucide-react';
+import { MessageSquare, Phone, Clock, CalendarDays } from 'lucide-react';
 import { useState } from 'react';
 import type { Inquiry } from '@/types';
 
@@ -59,6 +59,13 @@ function InquiryCard({ inquiry, isOwner }: { inquiry: Inquiry; isOwner: boolean 
           <span className="flex items-center gap-1">
             <Clock className="h-3 w-3" /> {formatDate(inquiry.createdAt)}
           </span>
+          {inquiry.visitDate && (
+            <span className="flex items-center gap-1 font-semibold text-slate-600">
+              <CalendarDays className="h-3 w-3" />
+              {/* Stored as UTC midnight — format in UTC to keep the chosen day */}
+              Visit {new Date(inquiry.visitDate).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })}
+            </span>
+          )}
         </div>
         {isOwner && inquiry.status === 'pending' && (
           <div className="flex gap-2">

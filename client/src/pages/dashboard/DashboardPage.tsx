@@ -167,7 +167,7 @@ export function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <Link to="/pg">
+            <Link to="/">
               <div className="flex items-center gap-3 rounded-xl border border-slate-150 bg-slate-50/50 p-4 hover:border-blue-500/20 hover:bg-slate-50 hover:shadow-sm transition-all cursor-pointer">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
                   <BarChart3 className="h-5 w-5" />

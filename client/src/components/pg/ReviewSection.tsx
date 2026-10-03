@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import { Star, Trash2, MessageSquare, Send, User as UserIcon } from 'lucide-react';
+import { Star, Trash2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { usePGReviews, useAddOrUpdateReview, useDeleteReview } from '@/hooks/useReview';
-import { Button } from '@/components/ui/Button';
-import { Textarea } from '@/components/ui/Input';
-import { Skeleton } from '@/components/ui';
+import { cn, getInitials } from '@/lib/utils';
 
 interface ReviewSectionProps {
   pgId: string;
@@ -41,32 +39,23 @@ export function ReviewSection({ pgId }: ReviewSectionProps) {
 
   if (isLoading) {
     return (
-      <div className="space-y-4 rounded-2xl border border-slate-100 bg-white p-6 premium-shadow">
-        <Skeleton className="h-6 w-48" />
-        <Skeleton className="h-20 w-full" />
-        <Skeleton className="h-24 w-full" />
+      <div className="space-y-3">
+        <div className="h-6 w-40 animate-pulse rounded-full bg-surface" />
+        <div className="h-28 animate-pulse rounded-[24px] bg-surface" />
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-6 premium-shadow space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-6">
-        <div>
-          <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <MessageSquare className="h-5 w-5 text-amber-500" />
-            Student Reviews ({total})
-          </h2>
-          <p className="mt-1 text-xs text-slate-500 font-medium">
-            Real feedback from verified students
-          </p>
-        </div>
-
-        {/* Action button */}
+    <div>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold tracking-tight">
+          Reviews <span className="font-normal text-muted">({total})</span>
+        </h2>
         {isAuthenticated && user?.role === 'student' && (
-          <Button
-            size="sm"
+          <button
+            type="button"
+            id="write-review-btn"
             onClick={() => {
               if (userExistingReview) {
                 setRating(userExistingReview.rating);
@@ -74,187 +63,159 @@ export function ReviewSection({ pgId }: ReviewSectionProps) {
               }
               setShowForm(!showForm);
             }}
-            id="write-review-btn"
-            className="bg-amber-500 hover:bg-amber-600 text-white font-semibold shadow-sm"
+            className="h-10 rounded-2xl border border-black/[0.08] px-4 text-[13px] font-medium transition-colors hover:bg-surface"
           >
-            <Star className="h-4 w-4 fill-current" />
-            {userExistingReview ? 'Edit Your Review' : 'Write a Review'}
-          </Button>
+            {userExistingReview ? 'Edit your review' : 'Write a review'}
+          </button>
         )}
       </div>
 
-      {/* Summary Ratings & Distribution Bars */}
-      <div className="grid gap-6 sm:grid-cols-3 items-center rounded-xl bg-slate-50 p-5 border border-slate-100">
-        {/* Rating Big Badge */}
-        <div className="text-center sm:border-r sm:border-slate-200/80 pr-2">
-          <div className="text-5xl font-black text-slate-900 tracking-tight">{avgRating}</div>
-          <div className="my-1.5 flex justify-center gap-1 text-amber-400">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <Star
-                key={star}
-                className={`h-4 w-4 ${
-                  star <= Math.round(Number(avgRating)) ? 'fill-current text-amber-400' : 'text-slate-300'
-                }`}
-              />
-            ))}
+      {total > 0 && (
+        <div className="mb-5 grid items-center gap-6 rounded-[24px] bg-surface p-5 sm:grid-cols-[auto_1fr]">
+          <div className="text-center sm:pr-6">
+            <p className="text-4xl font-semibold tracking-tight">{avgRating}</p>
+            <Stars value={Math.round(Number(avgRating))} className="mt-1.5 justify-center" />
+            <p className="mt-1 text-xs text-muted">
+              {total} review{total !== 1 ? 's' : ''}
+            </p>
           </div>
-          <p className="text-xs text-slate-500 font-medium">{total} total review{total !== 1 ? 's' : ''}</p>
-        </div>
-
-        {/* Rating Breakdown Progress Bars */}
-        <div className="sm:col-span-2 space-y-2">
-          {[5, 4, 3, 2, 1].map((stars) => {
-            const count = ratingDist[stars] ?? 0;
-            const percentage = total > 0 ? (count / total) * 100 : 0;
-            return (
-              <div key={stars} className="flex items-center gap-3 text-xs">
-                <span className="w-12 font-bold text-slate-700 flex items-center gap-1">
-                  {stars} <Star className="h-3 w-3 fill-current text-amber-400" />
-                </span>
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200/70">
-                  <div
-                    className="h-full rounded-full bg-amber-400 transition-all duration-500"
-                    style={{ width: `${percentage}%` }}
-                  />
+          <div className="space-y-1.5">
+            {[5, 4, 3, 2, 1].map((stars) => {
+              const count = ratingDist[stars] ?? 0;
+              const percentage = total > 0 ? (count / total) * 100 : 0;
+              return (
+                <div key={stars} className="flex items-center gap-3 text-xs">
+                  <span className="w-3 font-medium">{stars}</span>
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/10">
+                    <div className="h-full rounded-full bg-ink transition-all duration-500" style={{ width: `${percentage}%` }} />
+                  </div>
+                  <span className="w-6 text-right text-muted">{count}</span>
                 </div>
-                <span className="w-8 text-right font-medium text-slate-500">{count}</span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Write/Edit Review Form */}
       {showForm && (
-        <form onSubmit={handleSubmit} className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-5 space-y-4 animate-fade-in">
-          <h3 className="font-bold text-slate-800 text-sm">
-            {userExistingReview ? 'Update Your Rating & Review' : 'Rate & Share Your Experience'}
-          </h3>
-
-          {/* Interactive Star Picker */}
+        <form onSubmit={handleSubmit} className="mb-5 space-y-4 rounded-[24px] border border-black/[0.08] p-5 animate-fade-in">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Select Rating</label>
-            <div className="flex items-center gap-1.5">
+            <p className="mb-2 text-[13px] font-medium">Your rating</p>
+            <div className="flex items-center gap-1">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
                   type="button"
+                  aria-label={`${star} star${star > 1 ? 's' : ''}`}
                   onClick={() => setRating(star)}
                   onMouseEnter={() => setHoverRating(star)}
                   onMouseLeave={() => setHoverRating(0)}
-                  className="p-1 transition-transform hover:scale-125 focus:outline-none cursor-pointer"
+                  className="p-0.5 transition-transform hover:scale-110"
                 >
                   <Star
-                    className={`h-7 w-7 transition-colors ${
-                      star <= (hoverRating || rating)
-                        ? 'fill-current text-amber-400 drop-shadow-sm'
-                        : 'text-slate-300'
-                    }`}
+                    className={cn(
+                      'h-7 w-7 transition-colors',
+                      star <= (hoverRating || rating) ? 'fill-amber-400 text-amber-400' : 'text-black/15'
+                    )}
                   />
                 </button>
               ))}
-              <span className="ml-2 text-sm font-bold text-amber-600">
-                {hoverRating || rating} / 5 Stars
-              </span>
+              <span className="ml-2 text-sm text-muted">{hoverRating || rating} / 5</span>
             </div>
           </div>
-
-          <Textarea
-            id="review-comment"
-            label="Your Review"
-            placeholder="Share details about cleanliness, room comfort, food quality, safety, or owner behaviour..."
-            rows={3}
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            required
-            minLength={5}
-          />
-
+          <div>
+            <label htmlFor="review-comment" className="mb-1.5 block text-[13px] font-medium">
+              Your review
+            </label>
+            <textarea
+              id="review-comment"
+              placeholder="Cleanliness, room comfort, food, safety, how the broker treated you…"
+              rows={3}
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              required
+              minLength={5}
+              className="w-full resize-none rounded-2xl border border-transparent bg-surface px-4 py-3 text-sm leading-relaxed outline-none transition-all placeholder:text-muted/80 focus:border-black/10 focus:bg-white focus:ring-4 focus:ring-black/[0.04]"
+            />
+          </div>
           <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowForm(false)}
-            >
+            <button type="button" onClick={() => setShowForm(false)} className="h-11 rounded-2xl px-4 text-sm font-medium hover:bg-surface">
               Cancel
-            </Button>
-            <Button
+            </button>
+            <button
               type="submit"
-              size="sm"
-              loading={addOrUpdateReview.isPending}
               id="submit-review-btn"
-              className="bg-amber-500 hover:bg-amber-600 text-white font-semibold"
+              disabled={addOrUpdateReview.isPending}
+              className="h-11 rounded-2xl bg-ink px-5 text-sm font-medium text-white transition-colors hover:bg-black/85 disabled:opacity-60"
             >
-              <Send className="h-3.5 w-3.5" />
-              {userExistingReview ? 'Update Review' : 'Submit Review'}
-            </Button>
+              {userExistingReview ? 'Update review' : 'Post review'}
+            </button>
           </div>
         </form>
       )}
 
-      {/* Reviews List */}
       {reviews.length > 0 ? (
-        <div className="space-y-4 divide-y divide-slate-100">
+        <div className="divide-y divide-black/[0.06]">
           {reviews.map((r) => {
-            const isOwner = user?._id === r.user?._id;
+            const isMine = user?._id === r.user?._id;
             return (
-              <div key={r._id} className="pt-4 first:pt-0">
-                <div className="flex items-start justify-between gap-3 mb-2">
+              <div key={r._id} className="py-4 first:pt-0">
+                <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs uppercase">
+                    <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-surface text-xs font-semibold">
                       {r.user?.avatar ? (
-                        <img src={r.user.avatar} alt={r.user.name} className="h-full w-full rounded-full object-cover" />
+                        <img src={r.user.avatar} alt="" className="h-full w-full object-cover" />
                       ) : (
-                        r.user?.name?.charAt(0) || <UserIcon className="h-4 w-4 text-slate-400" />
+                        getInitials(r.user?.name || 'S')
                       )}
-                    </div>
+                    </span>
                     <div>
-                      <p className="font-bold text-slate-800 text-sm leading-tight">{r.user?.name || 'Anonymous Student'}</p>
-                      <p className="text-[11px] text-slate-400">
-                        {new Date(r.createdAt).toLocaleDateString('en-IN', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
+                      <p className="text-sm font-medium leading-tight">{r.user?.name || 'Student'}</p>
+                      <p className="text-xs text-muted">
+                        {new Date(r.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </p>
                     </div>
                   </div>
-
-                  {/* Stars & delete button */}
                   <div className="flex items-center gap-2">
-                    <div className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-bold text-amber-700">
-                      <Star className="h-3 w-3 fill-current text-amber-400" />
-                      {r.rating}.0
-                    </div>
-                    {isOwner && (
+                    <Stars value={r.rating} />
+                    {isMine && (
                       <button
                         type="button"
                         onClick={() => deleteReview.mutate(r._id)}
                         disabled={deleteReview.isPending}
+                        aria-label="Delete your review"
                         title="Delete your review"
-                        className="rounded-lg p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        className="rounded-lg p-1.5 text-muted transition-colors hover:bg-red-50 hover:text-red-600"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     )}
                   </div>
                 </div>
-
-                <p className="text-sm text-slate-650 leading-relaxed font-medium pl-12">
-                  {r.comment}
-                </p>
+                <p className="mt-2 pl-12 text-sm leading-relaxed text-muted">{r.comment}</p>
               </div>
             );
           })}
         </div>
       ) : (
-        <div className="py-10 text-center text-slate-400">
-          <Star className="mx-auto mb-2 h-8 w-8 text-slate-300" />
-          <p className="text-sm font-medium">No reviews yet for this PG</p>
-          <p className="text-xs text-slate-400 mt-0.5">Be the first student to leave a review!</p>
-        </div>
+        !showForm && (
+          <div className="rounded-[24px] bg-surface px-6 py-10 text-center">
+            <Star className="mx-auto h-6 w-6 text-black/20" />
+            <p className="mt-2 text-sm font-medium">No reviews yet</p>
+            <p className="mt-0.5 text-[13px] text-muted">Stayed here? Help other students by sharing how it was.</p>
+          </div>
+        )
       )}
+    </div>
+  );
+}
+
+function Stars({ value, className }: { value: number; className?: string }) {
+  return (
+    <div className={cn('flex gap-0.5', className)} aria-label={`${value} out of 5`}>
+      {[1, 2, 3, 4, 5].map((s) => (
+        <Star key={s} className={cn('h-3.5 w-3.5', s <= value ? 'fill-amber-400 text-amber-400' : 'text-black/15')} />
+      ))}
     </div>
   );
 }

@@ -20,10 +20,11 @@ export function useOwnerInquiries(params?: { page?: number; limit?: number; stat
   });
 }
 
-export function useStudentInquiries() {
+export function useStudentInquiries(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['inquiries', 'student'],
     queryFn: () => inquiryApi.getStudentInquiries(),
+    ...options,
   });
 }
 

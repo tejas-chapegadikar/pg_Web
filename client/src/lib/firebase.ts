@@ -3,6 +3,7 @@ import {
   getAuth,
   RecaptchaVerifier,
   signInWithPhoneNumber,
+  type Auth,
 } from 'firebase/auth';
 
 const firebaseConfig = {
@@ -12,6 +13,15 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+// Initialised on first use: getAuth() throws when the API key is missing,
+// and doing that at import time blanked the whole app instead of just phone login.
+let auth: Auth | null = null;
+
+export function getFirebaseAuth(): Auth {
+  if (!auth) {
+    auth = getAuth(initializeApp(firebaseConfig));
+  }
+  return auth;
+}
+
 export { RecaptchaVerifier, signInWithPhoneNumber };

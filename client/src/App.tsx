@@ -1,7 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { PublicLayout } from '@/components/layout/PublicLayout';
+import { MainLayout } from '@/components/layout/MainLayout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { ToastContainer } from '@/components/ui/Toast';
 import { OnboardingModal } from '@/components/auth/OnboardingModal';
@@ -9,9 +9,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { GoogleMapsProvider } from '@/components/maps/GoogleMapsProvider';
 
 // Pages
-import { HomePage } from '@/pages/HomePage';
-import { LoginPage } from '@/pages/auth/LoginPage';
-import { RegisterPage } from '@/pages/auth/RegisterPage';
+import { AuthPage } from '@/pages/auth/AuthPage';
 import { PhoneLoginPage } from '@/pages/auth/PhoneLoginPage';
 import { ResetPasswordPage } from '@/pages/auth/ResetPasswordPage';
 import { PGListPage } from '@/pages/pg/PGListPage';
@@ -31,6 +29,12 @@ const queryClient = new QueryClient({
   },
 });
 
+/** Listings used to live at /pg — keep old links (and their filters) working */
+function LegacyListingsRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={{ pathname: '/', search }} replace />;
+}
+
 /**
  * Shows the onboarding modal when user is authenticated but hasn't completed onboarding.
  * `isOnboarded === false` is strict — undefined (legacy users) is treated as onboarded.
@@ -48,20 +52,21 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          {/* Public routes */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+          {/* Auth — the only pages open without signing in; login is the site's front door */}
+          <Route path="/login" element={<AuthPage mode="login" />} />
+          <Route path="/register" element={<AuthPage mode="register" />} />
           <Route path="/phone-login" element={<PhoneLoginPage />} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
 
-          <Route element={<PublicLayout />}>
-            <Route path="/pg" element={<PGListPage />} />
-            <Route path="/pg/:id" element={<PGDetailsPage />} />
-          </Route>
-
-          {/* Protected routes (any authenticated user) */}
+          {/* Everything else requires an account (any role) */}
           <Route element={<ProtectedRoute />}>
+            {/* The listings page is the home page */}
+            <Route element={<MainLayout />}>
+              <Route path="/" element={<PGListPage />} />
+              <Route path="/pg/:id" element={<PGDetailsPage />} />
+            </Route>
+            <Route path="/pg" element={<LegacyListingsRedirect />} />
+
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/dashboard/inquiries" element={<InquiriesPage />} />

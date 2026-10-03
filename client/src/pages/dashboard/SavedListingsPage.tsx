@@ -36,7 +36,7 @@ export function SavedListingsPage() {
             <div className="py-12 text-center">
               <Heart className="mx-auto mb-3 h-10 w-10 text-slate-300" />
               <p className="text-slate-500 font-medium">No saved listings yet</p>
-              <Link to="/pg" className="mt-3 inline-block">
+              <Link to="/" className="mt-3 inline-block">
                 <Button size="sm" variant="outline">Browse PGs</Button>
               </Link>
             </div>

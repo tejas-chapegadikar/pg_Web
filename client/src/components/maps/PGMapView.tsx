@@ -44,8 +44,8 @@ function PGMarker({ pg, isSelected, onClick }: MarkerWithInfoProps) {
           className={[
             'flex items-center gap-1 rounded-full border-2 px-2.5 py-1 text-xs font-bold shadow-lg transition-all duration-200 cursor-pointer select-none',
             isSelected
-              ? 'border-blue-600 bg-blue-600 text-white scale-110 shadow-blue-500/30'
-              : 'border-white bg-white text-slate-800 hover:scale-105 hover:border-blue-200',
+              ? 'border-ink bg-ink text-white scale-110'
+              : 'border-white bg-white text-ink hover:scale-105',
           ].join(' ')}
         >
           <MapPin className="h-3 w-3" />
@@ -88,7 +88,7 @@ function PGMarker({ pg, isSelected, onClick }: MarkerWithInfoProps) {
               {pg.location.address}, {pg.location.city}
             </p>
             <div className="mt-2 flex items-center justify-between">
-              <span className="text-base font-black text-blue-600">
+              <span className="text-base font-semibold text-accent">
                 {formatCurrency(pg.rent)}
                 <span className="text-xs font-normal text-slate-400">/mo</span>
               </span>
@@ -98,7 +98,7 @@ function PGMarker({ pg, isSelected, onClick }: MarkerWithInfoProps) {
             </div>
             <Link
               to={`/pg/${pg._id}`}
-              className="mt-2.5 flex w-full items-center justify-center rounded-lg bg-blue-600 py-1.5 text-xs font-bold text-white transition-colors hover:bg-blue-700"
+              className="mt-2.5 flex w-full items-center justify-center rounded-lg bg-ink py-1.5 text-xs font-medium text-white transition-colors hover:bg-black/85"
             >
               View Details →
             </Link>
@@ -139,16 +139,21 @@ export function PGMapView({ listings }: PGMapViewProps) {
 
   if (!mapsEnabled) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 py-16 text-center">
-        <MapPin className="mb-3 h-10 w-10 text-slate-300" />
-        <p className="font-semibold text-slate-600">Map view requires a Google Maps API key</p>
-        <p className="mt-1 text-sm text-slate-400">Add <code className="rounded bg-slate-100 px-1 text-xs">VITE_GOOGLE_MAPS_API_KEY</code> to <code className="rounded bg-slate-100 px-1 text-xs">.env</code></p>
+      <div className="flex flex-col items-center justify-center rounded-[28px] bg-surface px-6 py-16 text-center">
+        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white">
+          <MapPin className="h-6 w-6" />
+        </span>
+        <p className="mt-4 text-lg font-semibold">Map view isn’t set up yet</p>
+        <p className="mt-1 max-w-sm text-sm text-muted">
+          Add a Google Maps key as <code className="rounded bg-white px-1 text-xs">VITE_GOOGLE_MAPS_API_KEY</code> in{' '}
+          <code className="rounded bg-white px-1 text-xs">client/.env</code> to see listings on a map.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-100 bg-white premium-shadow" style={{ height: 560 }}>
+    <div className="relative overflow-hidden rounded-[28px] border border-black/[0.06] bg-white" style={{ height: 560 }}>
       <Map
         defaultCenter={center}
         defaultZoom={mappable.length > 1 ? 12 : mappable.length === 1 ? 15 : 5}
@@ -181,7 +186,7 @@ export function PGMapView({ listings }: PGMapViewProps) {
       {/* Counter badge */}
       {mappable.length > 0 && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-slate-100 bg-white px-4 py-1.5 text-xs font-semibold text-slate-600 shadow-lg">
-          {mappable.length} of {listings.length} PG{listings.length !== 1 ? 's' : ''} on map
+          {mappable.length} of {listings.length} place{listings.length !== 1 ? 's' : ''} on map
         </div>
       )}
     </div>

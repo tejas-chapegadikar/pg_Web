@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Phone, ArrowLeft, RefreshCw, ShieldCheck } from 'lucide-react';
-import { auth, RecaptchaVerifier, signInWithPhoneNumber } from '@/lib/firebase';
-import { usePhoneLogin } from '@/hooks/useAuth';
+import { getFirebaseAuth, RecaptchaVerifier, signInWithPhoneNumber } from '@/lib/firebase';
+import { homeFor, usePhoneLogin } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/authStore';
 import type { ConfirmationResult } from 'firebase/auth';
 import logo from '@/assets/logo-dark.png';
@@ -14,13 +14,13 @@ const RESEND_COOLDOWN = 60;
 export function PhoneLoginPage() {
   const navigate = useNavigate();
   const phoneLogin = usePhoneLogin();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/dashboard');
+    if (isAuthenticated && user) {
+      navigate(homeFor(user.role));
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, user, navigate]);
 
   // Step 1 — phone entry
   const [phone, setPhone] = useState('');
@@ -46,7 +46,7 @@ export function PhoneLoginPage() {
 
   const setupRecaptcha = useCallback(() => {
     if (!recaptchaRef.current) {
-      recaptchaRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      recaptchaRef.current = new RecaptchaVerifier(getFirebaseAuth(), 'recaptcha-container', {
         size: 'invisible',
       });
     }
@@ -64,7 +64,7 @@ export function PhoneLoginPage() {
     try {
       const verifier = setupRecaptcha();
       const fullPhone = `${COUNTRY_CODE}${cleaned}`;
-      const confirmation = await signInWithPhoneNumber(auth, fullPhone, verifier);
+      const confirmation = await signInWithPhoneNumber(getFirebaseAuth(), fullPhone, verifier);
       confirmationRef.current = confirmation;
       setStep('otp');
       setCountdown(RESEND_COOLDOWN);
@@ -106,8 +106,8 @@ export function PhoneLoginPage() {
     try {
       const result = await confirmationRef.current.confirm(code);
       const idToken = await result.user.getIdToken();
-      await phoneLogin.mutateAsync(idToken);
-      navigate('/dashboard');
+      const res = await phoneLogin.mutateAsync(idToken);
+      navigate(homeFor(res.data.user.role));
     } catch (err: unknown) {
       const error = err as { code?: string };
       if (error.code === 'auth/invalid-verification-code') {

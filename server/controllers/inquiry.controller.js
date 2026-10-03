@@ -2,8 +2,8 @@ const inquiryService = require('../services/inquiry.service');
 const catchAsync = require('../utils/catchAsync');
 
 exports.createInquiry = catchAsync(async (req, res) => {
-  const { pgId, message, phone } = req.body;
-  const inquiry = await inquiryService.createInquiry(req.user._id, { pgId, message, phone });
+  const { pgId, message, phone, visitDate } = req.body;
+  const inquiry = await inquiryService.createInquiry(req.user._id, { pgId, message, phone, visitDate });
   res.status(201).json({ status: 'success', data: { inquiry } });
 });
 

@@ -79,4 +79,24 @@ describe('Inquiry Routes', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.data.inquiry.status).toBe('responded');
   });
+
+  it('should store an optional preferred visit date', async () => {
+    const visitDate = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const res = await request(app)
+      .post('/api/inquiries')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ pgId, message: 'Can I come and see the room?', phone: '1234567890', visitDate });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.data.inquiry.visitDate.slice(0, 10)).toBe(visitDate);
+  });
+
+  it('should reject a visit date in the past', async () => {
+    const res = await request(app)
+      .post('/api/inquiries')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ pgId, message: 'Can I come and see the room?', phone: '1234567890', visitDate: '2020-01-01' });
+
+    expect(res.statusCode).toBe(400);
+  });
 });

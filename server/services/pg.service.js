@@ -25,6 +25,19 @@ const buildFilter = (query) => {
   const filter = {};
 
   if (query.city) filter['location.city'] = { $regex: query.city, $options: 'i' };
+  // Free-text search over name, address and city (escaped — user input is not a regex)
+  if (query.q && String(query.q).trim()) {
+    const pattern = { $regex: String(query.q).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+    filter.$or = [{ title: pattern }, { 'location.address': pattern }, { 'location.city': pattern }];
+  }
+  // Listings created before flats existed have no propertyType — they're PGs
+  if (query.propertyType === 'pg') filter.propertyType = { $ne: 'flat' };
+  if (query.propertyType === 'flat') filter.propertyType = 'flat';
+  // "3" = exactly 3 BHK, "3+" = 3 or more
+  if (query.bhk) {
+    const min = parseInt(query.bhk);
+    if (!isNaN(min)) filter.bhk = String(query.bhk).endsWith('+') ? { $gte: min } : min;
+  }
   if (query.genderPreference) filter.genderPreference = query.genderPreference;
   if (query.roomType) filter.roomType = query.roomType;
   if (query.isAvailable !== undefined) filter.isAvailable = query.isAvailable === 'true';

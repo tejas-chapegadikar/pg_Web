@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
 
@@ -10,6 +10,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ role }: ProtectedRouteProps) {
   const { isAuthenticated, user } = useAuthStore();
   const { addToast } = useUIStore();
+  const location = useLocation();
 
   const isRoleMismatch = role && user?.role !== role;
 
@@ -24,7 +25,7 @@ export function ProtectedRoute({ role }: ProtectedRouteProps) {
   }, [isAuthenticated, isRoleMismatch, role, addToast]);
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   if (isRoleMismatch) {

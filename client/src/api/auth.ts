@@ -22,8 +22,9 @@ export const authApi = {
     return res.data;
   },
 
-  logout: async (): Promise<void> => {
-    await apiClient.post('/auth/logout');
+  // `token` is for ending a session that was never stored (e.g. a rejected login)
+  logout: async (token?: string): Promise<void> => {
+    await apiClient.post('/auth/logout', {}, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined);
   },
 
   refresh: async (): Promise<{ data: { accessToken: string } }> => {

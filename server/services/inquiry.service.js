@@ -6,7 +6,7 @@ const AppError = require('../utils/AppError');
 /**
  * Send an inquiry on a PG listing
  */
-exports.createInquiry = async (studentId, { pgId, message, phone }) => {
+exports.createInquiry = async (studentId, { pgId, message, phone, visitDate }) => {
   const pg = await PGListing.findById(pgId);
   if (!pg) throw new AppError('PG listing not found.', 404);
 
@@ -16,6 +16,7 @@ exports.createInquiry = async (studentId, { pgId, message, phone }) => {
     owner: pg.owner,
     message,
     phone,
+    visitDate: visitDate || undefined,
   });
 
   // Increment inquiry analytics
@@ -37,6 +38,7 @@ exports.createInquiry = async (studentId, { pgId, message, phone }) => {
         studentPhone: phone || (studentUser ? studentUser.phone : 'N/A'),
         pgTitle: pg.title,
         message,
+        visitDate: inquiry.visitDate,
       }).catch(err => console.error('Failed to send inquiry notification email:', err));
     }
   } catch (err) {

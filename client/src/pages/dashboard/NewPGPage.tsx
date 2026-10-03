@@ -29,6 +29,7 @@ const RENT_INCLUDES_OPTIONS = [
 ];
 
 const schema = z.object({
+  propertyType: z.enum(['pg', 'flat']),
   title: z.string().min(5, 'Title must be at least 5 characters'),
   description: z.string().min(20, 'Description must be at least 20 characters'),
   address: z.string().min(5, 'Address required'),
@@ -40,21 +41,30 @@ const schema = z.object({
   rent: z.coerce.number().min(500, 'Rent must be at least ₹500'),
   deposit: z.coerce.number().min(0, 'Deposit cannot be negative'),
   genderPreference: z.enum(['male', 'female', 'any']),
-  roomType: z.enum(['single', 'double', 'triple', 'dormitory']),
+  // PGs are described by room sharing, flats by BHK — checked in superRefine below
+  roomType: z.enum(['single', 'double', 'triple', 'dormitory']).optional(),
+  bhk: z.coerce.number().optional(),
   totalRooms: z.coerce.number().min(1, 'At least 1 room'),
   availableRooms: z.coerce.number().min(0),
   amenities: z.array(z.string()).min(1, 'Select at least one amenity'),
   rentIncludes: z.array(z.string()).optional(),
   additionalCharges: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.propertyType === 'pg' && !data.roomType) {
+    ctx.addIssue({ code: 'custom', path: ['roomType'], message: 'Choose a room type' });
+  }
+  if (data.propertyType === 'flat' && !(data.bhk && data.bhk >= 1 && data.bhk <= 10)) {
+    ctx.addIssue({ code: 'custom', path: ['bhk'], message: 'Choose the flat size' });
+  }
 });
 type FormData = z.infer<typeof schema>;
 
 const STEPS = ['Basic Info', 'Location', 'Pricing & Rooms', 'Amenities', 'Images'];
 
 const stepFields: (keyof FormData)[][] = [
-  ['title', 'description'],
+  ['propertyType', 'title', 'description'],
   ['address', 'city', 'state', 'pincode'],
-  ['rent', 'deposit', 'genderPreference', 'roomType', 'totalRooms', 'availableRooms', 'rentIncludes', 'additionalCharges'],
+  ['rent', 'deposit', 'genderPreference', 'roomType', 'bhk', 'totalRooms', 'availableRooms', 'rentIncludes', 'additionalCharges'],
   ['amenities'],
   [],
 ];
@@ -214,6 +224,7 @@ export function NewPGPage() {
   } = useForm<FormData>({
     resolver: zodResolver(schema) as never,
     defaultValues: {
+      propertyType: 'pg',
       title: '',
       description: '',
       address: '',
@@ -226,6 +237,7 @@ export function NewPGPage() {
       deposit: 0,
       genderPreference: 'any',
       roomType: 'single',
+      bhk: undefined,
       totalRooms: 1,
       availableRooms: 0,
       amenities: [],
@@ -238,6 +250,7 @@ export function NewPGPage() {
   useEffect(() => {
     if (existing) {
       reset({
+        propertyType: existing.propertyType ?? 'pg',
         title: existing.title,
         description: existing.description,
         address: existing.location.address,
@@ -249,7 +262,8 @@ export function NewPGPage() {
         rent: existing.rent,
         deposit: existing.deposit,
         genderPreference: existing.genderPreference,
-        roomType: existing.roomType,
+        roomType: existing.roomType ?? 'single',
+        bhk: existing.bhk,
         totalRooms: existing.totalRooms,
         availableRooms: existing.availableRooms,
         amenities: existing.amenities,
@@ -292,6 +306,7 @@ export function NewPGPage() {
   // ── Form submit ──────────────────────────────────────────────────────────
   const onSubmit = async (data: FormData) => {
     const payload = {
+      propertyType: data.propertyType,
       title: data.title,
       description: data.description,
       location: {
@@ -304,7 +319,7 @@ export function NewPGPage() {
       rent: data.rent,
       deposit: data.deposit,
       genderPreference: data.genderPreference,
-      roomType: data.roomType,
+      ...(data.propertyType === 'flat' ? { bhk: data.bhk } : { roomType: data.roomType }),
       totalRooms: data.totalRooms,
       availableRooms: data.availableRooms,
       amenities: data.amenities,
@@ -392,9 +407,19 @@ export function NewPGPage() {
               <>
                 <CardHeader><CardTitle>Basic Information</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
+                  <Select
+                    id="pg-property-type"
+                    label="Listing type"
+                    error={errors.propertyType?.message}
+                    options={[
+                      { value: 'pg', label: 'PG (rooms or beds)' },
+                      { value: 'flat', label: 'Flat (whole apartment)' },
+                    ]}
+                    {...register('propertyType')}
+                  />
                   <Input
                     id="pg-title"
-                    label="PG Title"
+                    label="Title"
                     placeholder="e.g. Bright & Spacious PG in HSR Layout"
                     error={errors.title?.message}
                     {...register('title')}
@@ -520,18 +545,31 @@ export function NewPGPage() {
                       ]}
                       {...register('genderPreference')}
                     />
-                    <Select
-                      id="pg-room-type"
-                      label="Room Type"
-                      error={errors.roomType?.message}
-                      options={[
-                        { value: 'single', label: 'Single' },
-                        { value: 'double', label: 'Double Sharing' },
-                        { value: 'triple', label: 'Triple Sharing' },
-                        { value: 'dormitory', label: 'Dormitory' },
-                      ]}
-                      {...register('roomType')}
-                    />
+                    {watch('propertyType') === 'flat' ? (
+                      <Select
+                        id="pg-bhk"
+                        label="Flat size"
+                        error={errors.bhk?.message}
+                        options={[
+                          { value: '', label: 'Select BHK' },
+                          ...[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: `${n} BHK` })),
+                        ]}
+                        {...register('bhk')}
+                      />
+                    ) : (
+                      <Select
+                        id="pg-room-type"
+                        label="Room Type"
+                        error={errors.roomType?.message}
+                        options={[
+                          { value: 'single', label: 'Single' },
+                          { value: 'double', label: 'Double Sharing' },
+                          { value: 'triple', label: 'Triple Sharing' },
+                          { value: 'dormitory', label: 'Dormitory' },
+                        ]}
+                        {...register('roomType')}
+                      />
+                    )}
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Input
