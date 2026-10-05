@@ -3,6 +3,7 @@ export interface User {
   _id: string;
   name: string;
   email?: string;
+  emailVerified?: boolean;
   role: 'student' | 'owner';
   phone?: string;
   phoneVerified?: boolean;
@@ -29,6 +30,8 @@ export interface RegisterPayload {
   email: string;
   password: string;
   role: 'student' | 'owner';
+  /** The 6-digit code emailed to `email` (see authApi.sendSignupCode) */
+  code: string;
 }
 
 export interface AuthResponse {

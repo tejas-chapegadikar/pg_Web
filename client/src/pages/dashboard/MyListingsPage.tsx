@@ -1,188 +1,276 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useMyListings, useDeletePG, useUpdatePG } from '@/hooks/usePG';
+import * as Dialog from '@radix-ui/react-dialog';
+import { Building2, Eye, Heart, Loader2, MapPin, MessageSquare, Minus, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useDeletePG, useMyListings, useUpdatePG } from '@/hooks/usePG';
 import { useUIStore } from '@/stores/uiStore';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Badge } from '@/components/ui';
-import { Button } from '@/components/ui/Button';
-import { Skeleton } from '@/components/ui';
-import { formatCurrency } from '@/lib/utils';
-import { Building2, Eye, MessageSquare, PlusCircle, Pencil, Trash2, Minus, Plus, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ds/Button';
+import { EmptyState } from '@/components/ds/EmptyState';
+import { PageHeader } from '@/components/ds/PageHeader';
+import { buttonClasses } from '@/components/ds/styles';
+import { ListingThumb } from '@/components/dashboard/parts';
+import { formatRent, genderLabel, roomLabel, typeLabel, typeOf } from '@/components/listing/meta';
 import type { PGListing } from '@/types';
+
+type Filter = 'all' | 'available' | 'full';
 
 export function MyListingsPage() {
   const { data, isLoading } = useMyListings();
-  const deletePG = useDeletePG();
+  const [filter, setFilter] = useState<Filter>('all');
+  const [toDelete, setToDelete] = useState<PGListing | null>(null);
+
+  const listings: PGListing[] = data?.data?.listings ?? [];
+  const available = listings.filter((l) => l.availableRooms > 0);
+  const shown = filter === 'all' ? listings : filter === 'available' ? available : listings.filter((l) => l.availableRooms <= 0);
+
+  const tabs: { value: Filter; label: string; count: number }[] = [
+    { value: 'all', label: 'All', count: listings.length },
+    { value: 'available', label: 'Available', count: available.length },
+    { value: 'full', label: 'Full', count: listings.length - available.length },
+  ];
+
+  return (
+    <div className="animate-fade-in">
+      <PageHeader
+        title="My listings"
+        description={listings.length ? `${listings.length} listed · ${available.length} with space right now` : undefined}
+        actions={
+          <Link to="/dashboard/listings/new" id="create-listing-btn" className={buttonClasses('primary', 'md', 'sm:hidden')}>
+            <Plus className="h-4 w-4" />
+            Add listing
+          </Link>
+        }
+      />
+
+      {isLoading ? (
+        <div className="space-y-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-40 animate-pulse rounded-[24px] bg-surface" />
+          ))}
+        </div>
+      ) : listings.length === 0 ? (
+        <EmptyState
+          icon={<Building2 className="h-6 w-6" />}
+          title="No listings yet"
+          text="Add your first PG or flat. It goes live for students straight away."
+          action={
+            <Link to="/dashboard/listings/new" id="first-listing-btn" className={buttonClasses('primary', 'md')}>
+              <Plus className="h-4 w-4" />
+              Add your first listing
+            </Link>
+          }
+        />
+      ) : (
+        <>
+          <div className="mb-5 flex gap-6 border-b border-black/[0.06]">
+            {tabs.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setFilter(t.value)}
+                className={cn(
+                  'relative pb-3 text-sm font-medium transition-colors',
+                  filter === t.value ? 'text-ink' : 'text-muted hover:text-ink'
+                )}
+              >
+                {t.label} <span className="text-muted">{t.count}</span>
+                {filter === t.value && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-ink" />}
+              </button>
+            ))}
+          </div>
+
+          {shown.length === 0 ? (
+            <p className="rounded-[24px] bg-surface px-6 py-10 text-center text-sm text-muted">Nothing here right now.</p>
+          ) : (
+            <ul className="space-y-4">
+              {shown.map((pg) => (
+                <ListingRow key={pg._id} pg={pg} onDelete={() => setToDelete(pg)} />
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+
+      <DeleteDialog listing={toDelete} onClose={() => setToDelete(null)} />
+    </div>
+  );
+}
+
+function ListingRow({ pg, onDelete }: { pg: PGListing; onDelete: () => void }) {
+  const isFull = pg.availableRooms <= 0;
+  return (
+    <li className="flex flex-col gap-4 rounded-[24px] border border-black/[0.06] bg-white p-3 sm:flex-row sm:items-center">
+      <Link to={`/pg/${pg._id}`} className="block sm:w-44">
+        <ListingThumb pg={pg} className="aspect-[4/3] w-full rounded-[18px]" />
+      </Link>
+
+      <div className="min-w-0 flex-1 px-1 sm:px-0">
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium">{typeLabel(typeOf(pg))}</span>
+          {isFull && <span className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700">Full</span>}
+          {(pg.images?.length ?? 0) === 0 && (
+            <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800">No photos</span>
+          )}
+        </div>
+        <Link to={`/pg/${pg._id}`} className="mt-2 block truncate text-[15px] font-semibold hover:underline">
+          {pg.title}
+        </Link>
+        <p className="mt-0.5 flex items-center gap-1 truncate text-[13px] capitalize text-muted">
+          <MapPin className="h-3.5 w-3.5 shrink-0" />
+          {pg.location.address}, {pg.location.city}
+        </p>
+        <p className="mt-2 text-[13px]">
+          <span className="font-semibold text-accent">{formatRent(pg.rent)}</span>
+          <span className="text-muted">/mo · {roomLabel(pg)} · {genderLabel(pg)}</span>
+        </p>
+        <div className="mt-2 flex items-center gap-4 text-[13px] text-muted">
+          <span className="flex items-center gap-1.5" title="Views">
+            <Eye className="h-3.5 w-3.5" /> {pg.analytics?.views ?? 0}
+          </span>
+          <span className="flex items-center gap-1.5" title="Requests">
+            <MessageSquare className="h-3.5 w-3.5" /> {pg.analytics?.inquiries ?? 0}
+          </span>
+          <span className="flex items-center gap-1.5" title="Saved by students">
+            <Heart className="h-3.5 w-3.5" /> {pg.analytics?.saves ?? 0}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 border-t border-black/[0.06] px-1 pt-3 sm:flex-col sm:items-end sm:border-0 sm:px-2 sm:pt-0">
+        <AvailabilityControl pg={pg} />
+        <div className="flex gap-1.5">
+          <Link to={`/dashboard/listings/${pg._id}/edit`} id={`edit-${pg._id}`} className={buttonClasses('secondary', 'sm')}>
+            <Pencil className="h-3.5 w-3.5" />
+            Edit
+          </Link>
+          <button
+            type="button"
+            id={`delete-${pg._id}`}
+            aria-label={`Delete ${pg.title}`}
+            title="Delete"
+            onClick={onDelete}
+            className={buttonClasses('ghost', 'sm', 'w-10 px-0 text-muted hover:bg-red-50 hover:text-red-600')}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </li>
+  );
+}
+
+/** PGs: rooms-free stepper. Flats: available / rented switch. Saves straight away. */
+function AvailabilityControl({ pg }: { pg: PGListing }) {
   const updatePG = useUpdatePG();
   const { addToast } = useUIStore();
+  const [rooms, setRooms] = useState(pg.availableRooms);
+  const isFlat = typeOf(pg) === 'flat';
 
-  const listings = data?.data?.listings ?? [];
-
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this listing?')) return;
+  const save = async (next: number) => {
+    if (next < 0 || next > pg.totalRooms || next === rooms) return;
+    const previous = rooms;
+    setRooms(next);
     try {
-      await deletePG.mutateAsync(id);
-      addToast({ title: 'Listing deleted', variant: 'success' });
+      await updatePG.mutateAsync({ id: pg._id, payload: { availableRooms: next } });
     } catch {
-      addToast({ title: 'Failed to delete listing', variant: 'destructive' });
+      setRooms(previous);
+      addToast({ title: 'Couldn’t update availability', variant: 'destructive' });
     }
   };
 
-  /** Quick vacancy inline control */
-  function VacancyControl({ pg }: { pg: PGListing }) {
-    const [rooms, setRooms] = useState(pg.availableRooms);
-    const [saving, setSaving] = useState(false);
-
-    const update = async (next: number) => {
-      if (next < 0 || next > pg.totalRooms) return;
-      setRooms(next);
-      setSaving(true);
-      try {
-        await updatePG.mutateAsync({ id: pg._id, payload: { availableRooms: next } as never });
-      } catch {
-        setRooms(pg.availableRooms); // revert on failure
-        addToast({ title: 'Failed to update vacancy', variant: 'destructive' });
-      } finally {
-        setSaving(false);
-      }
-    };
-
+  if (isFlat) {
+    const isAvailable = rooms > 0;
     return (
-      <div className="flex items-center gap-1">
+      <label className="flex cursor-pointer items-center gap-2.5 text-[13px]">
+        <span className="text-muted">{isAvailable ? 'Available' : 'Rented out'}</span>
         <button
-          onClick={() => update(rooms - 1)}
-          disabled={rooms <= 0 || saving}
-          className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-850 disabled:cursor-not-allowed disabled:opacity-30 border border-slate-200"
-          title="Decrease available rooms"
-          id={`vacancy-dec-${pg._id}`}
+          type="button"
+          role="switch"
+          aria-checked={isAvailable}
+          id={`availability-${pg._id}`}
+          onClick={() => save(isAvailable ? 0 : 1)}
+          disabled={updatePG.isPending}
+          className={cn('relative h-6 w-11 rounded-full transition-colors', isAvailable ? 'bg-ink' : 'bg-black/15')}
         >
-          <Minus className="h-3 w-3" />
+          <span
+            className={cn(
+              'absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
+              isAvailable ? 'translate-x-[22px]' : 'translate-x-0.5'
+            )}
+          />
         </button>
-        <div className="flex h-6 min-w-[2.5rem] items-center justify-center rounded-md border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800">
-          {saving ? <Loader2 className="h-3 w-3 animate-spin text-blue-600" /> : `${rooms}/${pg.totalRooms}`}
-        </div>
-        <button
-          onClick={() => update(rooms + 1)}
-          disabled={rooms >= pg.totalRooms || saving}
-          className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-850 disabled:cursor-not-allowed disabled:opacity-30 border border-slate-200"
-          title="Increase available rooms"
-          id={`vacancy-inc-${pg._id}`}
-        >
-          <Plus className="h-3 w-3" />
-        </button>
-      </div>
+      </label>
     );
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">My PG Listings</h1>
-          <p className="text-slate-500">Manage and monitor your properties</p>
-        </div>
-        <Link to="/dashboard/listings/new">
-          <Button id="create-listing-btn">
-            <PlusCircle className="h-4 w-4" />
-            Add New Listing
-          </Button>
-        </Link>
+    <div className="flex items-center gap-2.5 text-[13px]">
+      <span className="text-muted">Rooms free</span>
+      <div className="flex items-center rounded-xl bg-surface p-1">
+        <button
+          type="button"
+          aria-label="One less room free"
+          id={`vacancy-dec-${pg._id}`}
+          onClick={() => save(rooms - 1)}
+          disabled={rooms <= 0 || updatePG.isPending}
+          className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-white disabled:opacity-30"
+        >
+          <Minus className="h-3.5 w-3.5" />
+        </button>
+        <span className="flex w-14 items-center justify-center font-medium">
+          {updatePG.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : `${rooms} / ${pg.totalRooms}`}
+        </span>
+        <button
+          type="button"
+          aria-label="One more room free"
+          id={`vacancy-inc-${pg._id}`}
+          onClick={() => save(rooms + 1)}
+          disabled={rooms >= pg.totalRooms || updatePG.isPending}
+          className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-white disabled:opacity-30"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </button>
       </div>
-
-      <Card className="premium-shadow border border-slate-100 bg-white">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-blue-600" />
-            {listings.length} {listings.length === 1 ? 'Listing' : 'Listings'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
-            </div>
-          ) : listings.length === 0 ? (
-            <div className="py-12 text-center">
-              <Building2 className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-              <p className="text-slate-500">You have no listings yet</p>
-              <Link to="/dashboard/listings/new" className="mt-4 inline-block">
-                <Button id="first-listing-btn">Create Your First Listing</Button>
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {listings.map((pg) => (
-                <div
-                  key={pg._id}
-                  className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/50 p-4 hover:bg-slate-50 hover:border-slate-200 transition-all"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-slate-100 border border-slate-200 relative">
-                      {pg.images?.[0] ? (
-                        <>
-                          <img
-                            src={pg.images[0].url}
-                            alt={pg.title}
-                            className="h-full w-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                            }}
-                          />
-                          <div className="hidden absolute inset-0 flex items-center justify-center bg-slate-100">
-                            <Building2 className="h-6 w-6 text-slate-350" />
-                          </div>
-                        </>
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center bg-slate-100">
-                          <Building2 className="h-6 w-6 text-slate-355" />
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-800">{pg.title}</p>
-                      <p className="text-sm text-slate-500 font-medium">{pg.location.city} · {formatCurrency(pg.rent)}/mo · {pg.roomType}</p>
-                      <div className="mt-1 flex items-center gap-4 text-xs text-slate-400 font-medium">
-                        <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> {pg.analytics?.views ?? 0} views</span>
-                        <span className="flex items-center gap-1"><MessageSquare className="h-3 w-3" /> {pg.analytics?.inquiries ?? 0} inquiries</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <div className="flex flex-col items-end gap-1">
-                      <Badge variant={pg.availableRooms > 0 ? 'success' : 'destructive'}>
-                        {pg.availableRooms > 0 ? 'Active' : 'Full'}
-                      </Badge>
-                      <VacancyControl pg={pg} />
-                    </div>
-                    <Link to={`/pg/${pg._id}`}>
-                      <Button size="icon" variant="ghost" title="View" id={`view-${pg._id}`}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                    <Link to={`/dashboard/listings/${pg._id}/edit`}>
-                      <Button size="icon" variant="ghost" title="Edit" id={`edit-${pg._id}`}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      title="Delete"
-                      className="text-slate-400 hover:text-red-500"
-                      onClick={() => handleDelete(pg._id)}
-                      loading={deletePG.isPending}
-                      id={`delete-${pg._id}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
+  );
+}
+
+function DeleteDialog({ listing, onClose }: { listing: PGListing | null; onClose: () => void }) {
+  const deletePG = useDeletePG();
+  const { addToast } = useUIStore();
+
+  const confirm = async () => {
+    if (!listing) return;
+    try {
+      await deletePG.mutateAsync(listing._id);
+      addToast({ title: 'Listing deleted', variant: 'success' });
+      onClose();
+    } catch {
+      addToast({ title: 'Couldn’t delete the listing', variant: 'destructive' });
+    }
+  };
+
+  return (
+    <Dialog.Root open={Boolean(listing)} onOpenChange={(open) => !open && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/30 backdrop-blur-[2px] animate-fade-in" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-[28px] bg-white p-6 font-display text-ink shadow-2xl animate-fade-in">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+            <Trash2 className="h-5 w-5" />
+          </span>
+          <Dialog.Title className="mt-4 text-xl font-semibold tracking-tight">Delete “{listing?.title}”?</Dialog.Title>
+          <Dialog.Description className="mt-1 text-sm text-muted">
+            Students won’t see it any more, and its requests stay in your inbox. This can’t be undone.
+          </Dialog.Description>
+          <div className="mt-6 flex justify-end gap-2">
+            <Dialog.Close className={buttonClasses('ghost', 'md')}>Cancel</Dialog.Close>
+            <Button variant="danger" id="confirm-delete" loading={deletePG.isPending} onClick={confirm}>
+              Delete listing
+            </Button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

@@ -50,23 +50,30 @@ anei-ghar-web/
 
 ### Prerequisites
 - Node.js 20+
-- MongoDB (Atlas URI or local)
-- Cloudinary account
+- Nothing else for local development: `npm run db` runs a local MongoDB, and photos are saved on disk until Cloudinary is set up
 
 ### Backend
 
 ```bash
 cd server
-cp .env.example .env   # Fill in your MONGO_URI, JWT secrets, Cloudinary keys
 npm install
-npm run dev            # Starts on http://localhost:5000
+cp .env.example .env   # add two long random JWT secrets; everything else works as-is locally
+npm run db             # terminal 1 — local MongoDB at mongodb://127.0.0.1:27017 (data kept in server/.data)
+npm run dev            # terminal 2 — API on http://localhost:5000
 ```
+
+Optional keys in `server/.env` (see the comments in `.env.example`):
+- **SMTP** — sends the sign-up codes, password resets and notifications by email. Until it's set, emails are printed in the server console (and with `OTP_DEV_ECHO=true` the sign-up code is also shown on screen, locally only).
+- **FIREBASE_PROJECT_ID** — needed for Google sign-in.
+- **CLOUDINARY_*** — photo storage. Required in production; locally photos go to `server/uploads`.
+- **MONGO_URI** — point it at MongoDB Atlas for a shared or deployed site.
 
 ### Frontend
 
 ```bash
 cd client
 npm install
+cp .env.example .env   # optional: Firebase web config (Google sign-in), Google Maps key
 npm run dev            # Starts on http://localhost:5173
 ```
 
@@ -84,8 +91,11 @@ cd client && npx vitest run
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/api/auth/register` | — | Register user |
-| POST | `/api/auth/login` | — | Login |
+| POST | `/api/auth/otp/send` | — | Sign-up step 1: email a 6-digit code to confirm the address |
+| POST | `/api/auth/register` | — | Sign-up step 2: create the account (needs that code) |
+| POST | `/api/auth/login` | — | Login (email + password) |
+| POST | `/api/auth/google` | — | Google sign-in (Firebase ID token) |
+| POST | `/api/auth/phone` | — | Phone sign-in (Firebase ID token; not used by the website) |
 | POST | `/api/auth/refresh` | Cookie | Refresh token |
 | POST | `/api/auth/logout` | ✅ | Logout |
 | GET | `/api/auth/me` | ✅ | Get current user |

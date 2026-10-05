@@ -23,7 +23,10 @@ import { useUIStore } from '@/stores/uiStore';
 import { cn } from '@/lib/utils';
 import { PGMapView } from '@/components/maps/PGMapView';
 import { ListingCard, ListingCardSkeleton } from '@/components/listing/ListingCard';
-import { Chip, FilterSheet } from '@/components/listing/FilterSheet';
+import { FilterSheet } from '@/components/listing/FilterSheet';
+import { Chip } from '@/components/ds/Chip';
+import { Button } from '@/components/ds/Button';
+import { EmptyState } from '@/components/ds/EmptyState';
 import { EMPTY_FILTERS, countActiveFilters, type ListingFilterValues } from '@/components/listing/filters';
 import { AMENITIES, BHK_OPTIONS, COLLEGES, GENDERS, NEARBY_RADIUS_KM, ROOM_TYPES, formatRent } from '@/components/listing/meta';
 import type { PGFilters } from '@/types';
@@ -414,7 +417,7 @@ export function PGListPage() {
             icon={<RotateCw className="h-6 w-6" />}
             title="Couldn’t load listings"
             text="Check your connection and try again."
-            action={{ label: 'Try again', onClick: () => refetch() }}
+            action={<Button onClick={() => refetch()}>Try again</Button>}
           />
         ) : isLoading ? (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -422,12 +425,18 @@ export function PGListPage() {
               <ListingCardSkeleton key={i} />
             ))}
           </div>
+        ) : listings.length === 0 && !hasAnyFilter && filters.type === 'all' ? (
+          <EmptyState
+            icon={<BedDouble className="h-6 w-6" />}
+            title="No places listed yet"
+            text="New PGs and flats show up here as soon as brokers add them. Check back soon."
+          />
         ) : listings.length === 0 ? (
           <EmptyState
             icon={<SearchX className="h-6 w-6" />}
             title="No places match"
             text={nearPoint ? `Nothing within ${NEARBY_RADIUS_KM} km yet. Try another area or fewer filters.` : 'Try a different search or fewer filters.'}
-            action={hasAnyFilter ? { label: 'Clear filters', onClick: clearAll } : undefined}
+            action={hasAnyFilter ? <Button onClick={clearAll}>Clear filters</Button> : undefined}
           />
         ) : view === 'map' ? (
           <PGMapView listings={listings} />
@@ -473,34 +482,5 @@ function PageButton({ label, ...props }: React.ButtonHTMLAttributes<HTMLButtonEl
       className="flex h-11 w-11 items-center justify-center rounded-2xl border border-black/[0.08] transition-colors hover:bg-surface disabled:pointer-events-none disabled:opacity-40"
       {...props}
     />
-  );
-}
-
-function EmptyState({
-  icon,
-  title,
-  text,
-  action,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  text: string;
-  action?: { label: string; onClick: () => void };
-}) {
-  return (
-    <div className="flex flex-col items-center rounded-[28px] bg-surface px-6 py-16 text-center">
-      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white">{icon}</span>
-      <h2 className="mt-4 text-lg font-semibold">{title}</h2>
-      <p className="mt-1 max-w-sm text-sm text-muted">{text}</p>
-      {action && (
-        <button
-          type="button"
-          onClick={action.onClick}
-          className="mt-5 h-11 rounded-2xl bg-ink px-5 text-sm font-medium text-white transition-colors hover:bg-black/85"
-        >
-          {action.label}
-        </button>
-      )}
-    </div>
   );
 }

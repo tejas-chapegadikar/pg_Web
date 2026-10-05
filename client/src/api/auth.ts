@@ -1,7 +1,17 @@
 import apiClient from '@/lib/apiClient';
-import type { AuthResponse, LoginPayload, RegisterPayload, UpdateProfilePayload } from '@/types';
+import type { AuthResponse, LoginPayload, RegisterPayload, UpdateProfilePayload, User } from '@/types';
 
 export const authApi = {
+  /**
+   * Sign-up step 1: emails a 6-digit code to confirm the address.
+   * `devCode` only comes back in local development without an email server.
+   */
+  sendSignupCode: async (email: string): Promise<{ status: string; message: string; devCode?: string }> => {
+    const res = await apiClient.post('/auth/otp/send', { email });
+    return res.data;
+  },
+
+  /** Sign-up step 2: creates the account; needs the emailed code */
   register: async (payload: RegisterPayload): Promise<AuthResponse> => {
     const res = await apiClient.post('/auth/register', payload);
     return res.data;
@@ -12,8 +22,9 @@ export const authApi = {
     return res.data;
   },
 
-  phoneLogin: async (idToken: string): Promise<AuthResponse> => {
-    const res = await apiClient.post('/auth/phone', { idToken });
+  /** Signs in the Google account's email, or creates the account with `role` */
+  googleLogin: async (payload: { idToken: string; role: User['role'] }): Promise<AuthResponse> => {
+    const res = await apiClient.post('/auth/google', payload);
     return res.data;
   },
 

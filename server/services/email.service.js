@@ -1,11 +1,11 @@
 const nodemailer = require('nodemailer');
 
+const isEmailConfigured = () =>
+  Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+exports.isEmailConfigured = isEmailConfigured;
+
 const createTransport = () => {
-  if (
-    process.env.SMTP_HOST &&
-    process.env.SMTP_USER &&
-    process.env.SMTP_PASS
-  ) {
+  if (isEmailConfigured()) {
     return nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT) || 587,
@@ -127,5 +127,25 @@ exports.sendPasswordResetEmail = async ({ to, name, resetUrl }) => {
     </div>
   `;
 
+  return sendEmail({ to, subject, text, html });
+};
+
+/**
+ * Send the 6-digit code that confirms a new account's email.
+ * Nothing typed on the sign-up form goes into it: anyone can enter any address,
+ * so the email must not carry text a stranger chose.
+ */
+exports.sendOtpEmail = async ({ to, code }) => {
+  const subject = `${code} is your Anei Ghar code`;
+  const text = `Hi there,\n\nYour code to finish creating your Anei Ghar account is ${code}. It expires in 10 minutes.\n\nIf you didn't try to sign up, you can ignore this email.\n\nThe Anei Ghar Team`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #111;">
+      <p style="margin: 0 0 16px;">Hi there,</p>
+      <p style="margin: 0 0 16px;">Use this code to finish creating your Anei Ghar account:</p>
+      <p style="margin: 0 0 16px; font-size: 32px; font-weight: bold; letter-spacing: 8px;">${code}</p>
+      <p style="margin: 0 0 24px; color: #666;">It expires in 10 minutes. If you didn't try to sign up, you can ignore this email.</p>
+      <p style="margin: 0; color: #999; font-size: 12px;">The Anei Ghar Team</p>
+    </div>
+  `;
   return sendEmail({ to, subject, text, html });
 };

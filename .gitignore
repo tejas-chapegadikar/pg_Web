@@ -3,6 +3,10 @@ node_modules/
 .pnp
 .pnp.js
 
+# Local development data (npm run db) and photos saved without Cloudinary
+server/.data/
+server/uploads/
+
 # Environment files
 .env
 .env.local

@@ -20,6 +20,7 @@ jest.mock('../../middleware/upload', () => ({
 const request = require('supertest');
 const app = require('../../app');
 const db = require('../db.helper');
+const { registerUser } = require('../auth.helper');
 
 beforeAll(async () => await db.connect());
 afterEach(async () => await db.clearDatabase());
@@ -61,7 +62,7 @@ let ownerToken;
 let studentToken;
 
 const registerAndLogin = async (userData) => {
-  const res = await request(app).post('/api/auth/register').send(userData);
+  const res = await registerUser(app, userData);
   return res.body.data.accessToken;
 };
 

@@ -1,6 +1,5 @@
 import { useUIStore } from '@/stores/uiStore';
-import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { X, CheckCircle2, AlertCircle, Info } from 'lucide-react';
 
 export function ToastContainer() {
   const { toasts, removeToast } = useUIStore();
@@ -8,37 +7,31 @@ export function ToastContainer() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+    <div className="fixed bottom-6 left-1/2 z-[60] flex w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 flex-col gap-2 font-display sm:left-auto sm:right-6 sm:translate-x-0">
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={cn(
-            'flex items-start gap-3 rounded-xl border p-4 shadow-xl bg-white max-w-sm border-l-4 animate-slide-in',
-            toast.variant === 'destructive'
-              ? 'border-slate-100 border-l-red-500 text-slate-800'
-              : toast.variant === 'success'
-              ? 'border-slate-100 border-l-emerald-500 text-slate-800'
-              : 'border-slate-100 border-l-blue-500 text-slate-800'
-          )}
+          role="status"
+          className="flex items-start gap-3 rounded-2xl bg-ink px-4 py-3.5 text-white shadow-[0_20px_50px_-20px_rgba(17,17,17,0.6)] animate-slide-in"
         >
-          <div className="shrink-0 mt-0.5">
+          <span className="mt-0.5 shrink-0">
             {toast.variant === 'destructive' ? (
-              <AlertCircle className="h-4 w-4 text-red-500" />
+              <AlertCircle className="h-4 w-4 text-red-300" />
             ) : toast.variant === 'success' ? (
-              <CheckCircle className="h-4 w-4 text-emerald-500" />
+              <CheckCircle2 className="h-4 w-4 text-emerald-300" />
             ) : (
-              <Info className="h-4 w-4 text-blue-600" />
+              <Info className="h-4 w-4 text-white/70" />
             )}
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-bold text-slate-900">{toast.title}</p>
-            {toast.description && (
-              <p className="mt-0.5 text-xs text-slate-500 font-medium leading-normal">{toast.description}</p>
-            )}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">{toast.title}</p>
+            {toast.description && <p className="mt-0.5 text-[13px] leading-normal text-white/70">{toast.description}</p>}
           </div>
           <button
+            type="button"
+            aria-label="Dismiss"
             onClick={() => removeToast(toast.id)}
-            className="shrink-0 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+            className="shrink-0 text-white/50 transition-colors hover:text-white"
           >
             <X className="h-4 w-4" />
           </button>

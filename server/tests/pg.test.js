@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const app = require('../app');
 const User = require('../models/User');
 const PGListing = require('../models/PGListing');
+const { registerUser } = require('./auth.helper');
 
 describe('PG CRUD Routes', () => {
   let ownerToken;
@@ -26,12 +27,12 @@ describe('PG CRUD Routes', () => {
 
   beforeAll(async () => {
     // Register owner
-    const ownerRes = await request(app).post('/api/auth/register').send(owner);
+    const ownerRes = await registerUser(app, owner);
     ownerToken = ownerRes.body.data.accessToken;
     ownerId = ownerRes.body.data.user._id;
 
     // Register student
-    const studentRes = await request(app).post('/api/auth/register').send(student);
+    const studentRes = await registerUser(app, student);
     studentToken = studentRes.body.data.accessToken;
   });
 

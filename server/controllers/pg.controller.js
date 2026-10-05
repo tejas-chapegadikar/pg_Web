@@ -1,5 +1,5 @@
 const pgService = require('../services/pg.service');
-const { cloudinary, uploadToCloudinary } = require('../middleware/upload');
+const { storeImage, deleteStoredImage } = require('../middleware/upload');
 const catchAsync = require('../utils/catchAsync');
 
 exports.getAllPGs = catchAsync(async (req, res) => {
@@ -32,15 +32,8 @@ exports.uploadImages = catchAsync(async (req, res) => {
     return res.status(400).json({ status: 'fail', message: 'No images uploaded.' });
   }
 
-  // Upload each buffered file to Cloudinary and collect results
-  const uploadedImages = await Promise.all(
-    req.files.map((file) =>
-      uploadToCloudinary(file.buffer, { resource_type: 'image' }).then((result) => ({
-        url: result.secure_url,
-        publicId: result.public_id,
-      }))
-    )
-  );
+  // Cloudinary when configured, otherwise local disk (development only)
+  const uploadedImages = await Promise.all(req.files.map((file) => storeImage(file)));
 
   const pg = await pgService.addImages(req.params.id, req.user._id, uploadedImages);
   res.status(200).json({ status: 'success', data: { pg } });
@@ -51,7 +44,7 @@ exports.deleteImage = catchAsync(async (req, res) => {
     req.params.id,
     req.user._id,
     req.params.publicId,
-    cloudinary
+    deleteStoredImage
   );
   res.status(200).json({ status: 'success', data: { pg } });
 });

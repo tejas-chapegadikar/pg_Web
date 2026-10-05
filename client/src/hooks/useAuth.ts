@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '@/api/auth';
 import { useAuthStore } from '@/stores/authStore';
-import type { LoginPayload, RegisterPayload, UpdateProfilePayload, User } from '@/types';
+import type { AuthResponse, LoginPayload, RegisterPayload, UpdateProfilePayload, User } from '@/types';
 
 /** Where a user lands after signing in: students browse listings, brokers get their dashboard. */
 export const homeFor = (role: User['role']) => (role === 'owner' ? '/dashboard' : '/');
@@ -13,38 +13,53 @@ export class RoleMismatchError extends Error {
   }
 }
 
+async function enforceRole(data: AuthResponse, expectedRole?: User['role']) {
+  if (expectedRole && data.data.user.role !== expectedRole) {
+    // Don't leave a session open for an account the user didn't mean to sign into
+    await authApi.logout(data.data.accessToken).catch(() => {});
+    throw new RoleMismatchError(data.data.user.role);
+  }
+  return data;
+}
+
 export function useLogin() {
   const { setAuth } = useAuthStore();
   return useMutation({
-    mutationFn: async ({ expectedRole, ...payload }: LoginPayload & { expectedRole?: User['role'] }) => {
-      const data = await authApi.login(payload);
-      if (expectedRole && data.data.user.role !== expectedRole) {
-        // Don't leave a session open for an account the user didn't mean to sign into
-        await authApi.logout(data.data.accessToken).catch(() => {});
-        throw new RoleMismatchError(data.data.user.role);
-      }
-      return data;
-    },
+    mutationFn: async ({ expectedRole, ...payload }: LoginPayload & { expectedRole?: User['role'] }) =>
+      enforceRole(await authApi.login(payload), expectedRole),
     onSuccess: (data) => {
       setAuth(data.data.user, data.data.accessToken);
     },
   });
 }
 
+/**
+ * Finish a Google sign-in or sign-up: checks the role picked on the form,
+ * then stores the session.
+ */
+export function useAuthenticate() {
+  const { setAuth } = useAuthStore();
+  return useMutation({
+    mutationFn: async ({ run, expectedRole }: { run: () => Promise<AuthResponse>; expectedRole?: User['role'] }) =>
+      enforceRole(await run(), expectedRole),
+    onSuccess: (data) => {
+      setAuth(data.data.user, data.data.accessToken);
+    },
+  });
+}
+
+/** Sign-up step 1: email a code to confirm the address */
+export function useSendSignupCode() {
+  return useMutation({
+    mutationFn: (email: string) => authApi.sendSignupCode(email),
+  });
+}
+
+/** Sign-up step 2: create the account with the emailed code */
 export function useRegister() {
   const { setAuth } = useAuthStore();
   return useMutation({
     mutationFn: (payload: RegisterPayload) => authApi.register(payload),
-    onSuccess: (data) => {
-      setAuth(data.data.user, data.data.accessToken);
-    },
-  });
-}
-
-export function usePhoneLogin() {
-  const { setAuth } = useAuthStore();
-  return useMutation({
-    mutationFn: (idToken: string) => authApi.phoneLogin(idToken),
     onSuccess: (data) => {
       setAuth(data.data.user, data.data.accessToken);
     },

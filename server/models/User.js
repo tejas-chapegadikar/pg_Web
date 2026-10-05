@@ -17,6 +17,11 @@ const userSchema = new mongoose.Schema(
       trim: true,
       match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email'],
     },
+    // Confirmed with an emailed code at sign-up, or by Google
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
     password: {
       type: String,
       minlength: [8, 'Password must be at least 8 characters'],

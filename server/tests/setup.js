@@ -8,6 +8,12 @@ process.env.JWT_REFRESH_EXPIRE = process.env.JWT_REFRESH_EXPIRE || '7d';
 process.env.NODE_ENV = 'test';
 process.env.CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 
+// Tests must never send real email, even when server/.env has SMTP settings
+delete process.env.SMTP_HOST;
+delete process.env.SMTP_USER;
+delete process.env.SMTP_PASS;
+delete process.env.OTP_DEV_ECHO;
+
 const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 

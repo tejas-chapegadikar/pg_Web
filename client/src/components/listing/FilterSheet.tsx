@@ -2,6 +2,7 @@ import { useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Chip } from '@/components/ds/Chip';
 import { AMENITIES, BHK_OPTIONS, GENDERS, ROOM_TYPES, formatRent } from './meta';
 import { EMPTY_FILTERS, PRICE_MAX, PRICE_MIN, PRICE_STEP, type ListingFilterValues } from './filters';
 
@@ -180,7 +181,7 @@ function FilterForm({ initial, onApply }: { initial: ListingFilterValues; onAppl
           >
             <span
               className={cn(
-                'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
+                'absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
                 draft.includeFull ? 'translate-x-[22px]' : 'translate-x-0.5'
               )}
             />
@@ -215,25 +216,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h3 className="mb-3 text-sm font-semibold">{title}</h3>
       {children}
     </section>
-  );
-}
-
-export function Chip({
-  selected,
-  className,
-  ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { selected: boolean }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      className={cn(
-        'inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-full border px-4 text-[13px] font-medium transition-colors',
-        selected ? 'border-ink bg-ink text-white' : 'border-black/[0.08] bg-white hover:border-black/20',
-        className
-      )}
-      {...props}
-    />
   );
 }
 

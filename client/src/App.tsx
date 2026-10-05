@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AppLayout } from '@/components/layout/AppLayout';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { ToastContainer } from '@/components/ui/Toast';
@@ -10,7 +9,6 @@ import { GoogleMapsProvider } from '@/components/maps/GoogleMapsProvider';
 
 // Pages
 import { AuthPage } from '@/pages/auth/AuthPage';
-import { PhoneLoginPage } from '@/pages/auth/PhoneLoginPage';
 import { ResetPasswordPage } from '@/pages/auth/ResetPasswordPage';
 import { PGListPage } from '@/pages/pg/PGListPage';
 import { PGDetailsPage } from '@/pages/pg/PGDetailsPage';
@@ -55,20 +53,18 @@ function App() {
           {/* Auth — the only pages open without signing in; login is the site's front door */}
           <Route path="/login" element={<AuthPage mode="login" />} />
           <Route path="/register" element={<AuthPage mode="register" />} />
-          <Route path="/phone-login" element={<PhoneLoginPage />} />
+          {/* Phone OTP now lives on the login page */}
+          <Route path="/phone-login" element={<Navigate to="/login" replace />} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
 
           {/* Everything else requires an account (any role) */}
           <Route element={<ProtectedRoute />}>
-            {/* The listings page is the home page */}
             <Route element={<MainLayout />}>
+              {/* The listings page is the home page */}
               <Route path="/" element={<PGListPage />} />
               <Route path="/pg/:id" element={<PGDetailsPage />} />
-            </Route>
-            <Route path="/pg" element={<LegacyListingsRedirect />} />
 
-            <Route element={<AppLayout />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
+              {/* Requests: brokers see their inbox, students see what they sent */}
               <Route path="/dashboard/inquiries" element={<InquiriesPage />} />
 
               {/* Student-only */}
@@ -76,13 +72,15 @@ function App() {
                 <Route path="/dashboard/saved" element={<SavedListingsPage />} />
               </Route>
 
-              {/* Owner-only */}
+              {/* Broker-only */}
               <Route element={<ProtectedRoute role="owner" />}>
+                <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/dashboard/listings" element={<MyListingsPage />} />
                 <Route path="/dashboard/listings/new" element={<NewPGPage />} />
                 <Route path="/dashboard/listings/:id/edit" element={<NewPGPage />} />
               </Route>
             </Route>
+            <Route path="/pg" element={<LegacyListingsRedirect />} />
           </Route>
 
           {/* Fallback */}

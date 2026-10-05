@@ -56,11 +56,12 @@ export const GENDERS = [
 ] as const;
 
 /** Colleges with a "PGs within 3 km" shortcut (moved from the old home page) */
+// Coordinates from OpenStreetMap — the old values were 1–14 km off, which broke the 3 km search
 export const COLLEGES = [
-  { id: 'ku', name: 'Kaziranga University', short: 'Kaziranga Univ.', lat: 26.7499, lng: 94.2108 },
-  { id: 'jbu', name: 'Jagannath Barooah University', short: 'JB University', lat: 26.7472, lng: 94.2031 },
-  { id: 'jmch', name: 'Jorhat Medical College', short: 'JMCH', lat: 26.758, lng: 94.2097 },
-  { id: 'aau', name: 'Assam Agricultural University', short: 'AAU Jorhat', lat: 26.7516, lng: 94.2136 },
+  { id: 'ku', name: 'Kaziranga University', short: 'Kaziranga Univ.', lat: 26.724, lng: 94.0758 },
+  { id: 'jbu', name: 'Jagannath Barooah University', short: 'JB University', lat: 26.7573, lng: 94.2046 },
+  { id: 'jmch', name: 'Jorhat Medical College', short: 'JMCH', lat: 26.7422, lng: 94.1961 },
+  { id: 'aau', name: 'Assam Agricultural University', short: 'AAU Jorhat', lat: 26.7194, lng: 94.1927 },
 ] as const;
 
 export const NEARBY_RADIUS_KM = 3;

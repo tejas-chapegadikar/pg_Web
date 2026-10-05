@@ -1,36 +1,15 @@
-import { forwardRef, useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft,
-  Briefcase,
-  Check,
-  CheckCircle2,
-  Eye,
-  EyeOff,
-  GraduationCap,
-  Lock,
-  Mail,
-  Phone,
-  User as UserIcon,
-} from 'lucide-react';
-import { homeFor, useForgotPassword, useLogin, useRegister, RoleMismatchError } from '@/hooks/useAuth';
+import { authApi } from '@/api/auth';
+import { homeFor, RoleMismatchError, useAuthenticate } from '@/hooks/useAuth';
+import { firebaseErrorMessage, getGoogleIdToken, isFirebaseConfigured } from '@/lib/firebase';
 import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/lib/utils';
-import type { User } from '@/types';
+import { buttonClasses } from '@/components/ds/styles';
 import logo from '@/assets/logo-dark.png';
-
-type Role = User['role'];
-type Mode = 'login' | 'register';
-
-const ROLES = [
-  { value: 'student', title: 'Student', description: 'Browse PGs & send enquiries', icon: GraduationCap },
-  { value: 'owner', title: 'Broker / Agent', description: 'List PGs & manage enquiries', icon: Briefcase },
-] as const;
-
-const ROLE_LABEL: Record<Role, string> = { student: 'Student', owner: 'Broker / Agent' };
+import { ErrorBanner, RoleMismatchBanner } from './authParts';
+import { FIREBASE_MISSING, apiMessage, type Mode, type Role } from './authShared';
+import { ForgotPassword, LoginForm, RegisterForm } from './PasswordForms';
 
 const unsplash = (id: string) => `https://images.unsplash.com/${id}?w=1400&q=80&auto=format&fit=crop`;
 
@@ -52,29 +31,6 @@ const SLIDES = [
   },
 ];
 
-const loginSchema = z.object({
-  email: z.string().email('Enter a valid email'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-});
-type LoginData = z.infer<typeof loginSchema>;
-
-const registerSchema = z
-  .object({
-    name: z.string().min(2, 'Name must be at least 2 characters'),
-    email: z.string().email('Enter a valid email'),
-    password: z.string().min(6, 'At least 6 characters'),
-    confirmPassword: z.string().min(6, 'At least 6 characters'),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ['confirmPassword'],
-  });
-type RegisterData = z.infer<typeof registerSchema>;
-
-const apiMessage = (err: unknown, fallback: string) =>
-  (err as { response?: { data?: { message?: string } } })?.response?.data?.message || fallback;
-
-
 export function AuthPage({ mode }: { mode: Mode }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -90,6 +46,34 @@ export function AuthPage({ mode }: { mode: Mode }) {
     const returnTo = from && from.pathname !== '/' ? from.pathname + from.search : homeFor(user.role);
     navigate(returnTo, { replace: true });
   }, [isAuthenticated, user, from, navigate]);
+
+  // ── Google ───────────────────────────────────────────────────────────────
+  const google = useAuthenticate();
+  const [googleProblem, setGoogleProblem] = useState<string | null>(null);
+  const [googleOpening, setGoogleOpening] = useState(false);
+
+  const continueWithGoogle = async () => {
+    setGoogleProblem(null);
+    google.reset();
+    if (!isFirebaseConfigured) {
+      setGoogleProblem(`Google sign-in ${FIREBASE_MISSING}`);
+      return;
+    }
+    setGoogleOpening(true);
+    try {
+      const idToken = await getGoogleIdToken();
+      // New Google accounts are created with the role picked above
+      google.mutate({ run: () => authApi.googleLogin({ idToken, role }), expectedRole: role });
+    } catch (err) {
+      setGoogleProblem(firebaseErrorMessage(err));
+    } finally {
+      setGoogleOpening(false);
+    }
+  };
+
+  const googleMismatch = google.error instanceof RoleMismatchError ? google.error : null;
+  const googleError =
+    googleProblem ?? (google.error && !googleMismatch ? apiMessage(google.error, 'Google sign-in failed. Please try again.') : null);
 
   const isLogin = mode === 'login';
   const showForgot = forgotMode && isLogin;
@@ -119,7 +103,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
                 </p>
 
                 {/* Tabs */}
-                <div className="mt-6 flex gap-8 border-b compact:mt-4 border-black/[0.06]">
+                <div className="mt-6 flex gap-8 border-b border-black/[0.06] compact:mt-4">
                   {(['login', 'register'] as const).map((m) => (
                     <Link
                       key={m}
@@ -144,20 +128,43 @@ export function AuthPage({ mode }: { mode: Mode }) {
                 )}
 
                 {/* Divider */}
-                <div className="my-4 compact:my-3 flex items-center gap-4 text-xs text-muted">
+                <div className="my-4 flex items-center gap-4 text-xs text-muted compact:my-3">
                   <span className="h-px flex-1 bg-black/[0.07]" />
                   or
                   <span className="h-px flex-1 bg-black/[0.07]" />
                 </div>
 
+                {googleMismatch ? (
+                  <div className="mb-3">
+                    <RoleMismatchBanner
+                      actualRole={googleMismatch.actualRole}
+                      onSwitch={(r) => {
+                        setRole(r);
+                        google.reset();
+                      }}
+                    />
+                  </div>
+                ) : (
+                  googleError && (
+                    <div className="mb-3">
+                      <ErrorBanner>{googleError}</ErrorBanner>
+                    </div>
+                  )
+                )}
+
                 <button
                   type="button"
-                  id="auth-phone-btn"
-                  onClick={() => navigate('/phone-login')}
-                  className="flex h-12 w-full items-center justify-center gap-2.5 rounded-2xl border compact:h-11 border-black/[0.08] bg-white text-sm font-medium transition-colors hover:bg-surface"
+                  id="google-btn"
+                  onClick={continueWithGoogle}
+                  disabled={googleOpening || google.isPending}
+                  className={buttonClasses('secondary', 'md', 'w-full')}
                 >
-                  <Phone className="h-4 w-4" />
-                  Continue with phone number
+                  {googleOpening || google.isPending ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/15 border-t-ink" />
+                  ) : (
+                    <GoogleLogo />
+                  )}
+                  Continue with Google
                 </button>
 
                 <p className="mt-5 text-center text-[13px] text-muted compact:mt-3">
@@ -211,11 +218,6 @@ function HeroPanel() {
         <span className="absolute left-5 top-5 rounded-2xl bg-white/90 px-3 py-2 backdrop-blur-md">
           <img src={logo} alt="Anei Ghar" className="h-8 w-auto" />
         </span>
-
-        <span className="absolute right-5 top-5 rounded-xl bg-black/40 px-3 py-1.5 text-white backdrop-blur-md">
-          <span className="text-base font-semibold">{String(index + 1).padStart(2, '0')}</span>
-          <span className="text-xs text-white/70">/{String(SLIDES.length).padStart(2, '0')}</span>
-        </span>
       </div>
 
       <div className="mt-5 flex justify-center gap-2">
@@ -241,338 +243,14 @@ function HeroPanel() {
   );
 }
 
-/* ─── Forms ───────────────────────────────────────────────────────────── */
-
-interface FormProps {
-  role: Role;
-  onRoleChange: (role: Role) => void;
-}
-
-function LoginForm({ role, onRoleChange, onForgot }: FormProps & { onForgot: () => void }) {
-  const login = useLogin();
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginData>({ resolver: zodResolver(loginSchema) });
-
-  const mismatch = login.error instanceof RoleMismatchError ? login.error : null;
-
-  const changeRole = (r: Role) => {
-    onRoleChange(r);
-    login.reset();
-  };
-
+/** Google's multicolour "G" (as required by Google's sign-in branding guidelines) */
+function GoogleLogo() {
   return (
-    <form
-      id="login-form"
-      onSubmit={handleSubmit((data) => login.mutate({ ...data, expectedRole: role }))}
-      className="mt-5 space-y-4 compact:mt-4 compact:space-y-3"
-    >
-      <RolePicker label="Sign in as" value={role} onChange={changeRole} />
-
-      {mismatch ? (
-        <ErrorBanner>
-          This account is registered as a {ROLE_LABEL[mismatch.actualRole]}.{' '}
-          <button type="button" onClick={() => changeRole(mismatch.actualRole)} className="font-semibold underline">
-            Sign in as {ROLE_LABEL[mismatch.actualRole]}
-          </button>
-        </ErrorBanner>
-      ) : (
-        login.isError && <ErrorBanner>{apiMessage(login.error, 'Invalid credentials. Please try again.')}</ErrorBanner>
-      )}
-
-      <Field
-        id="login-email"
-        label="Email"
-        type="email"
-        autoComplete="email"
-        placeholder="you@example.com"
-        icon={<Mail className="h-[18px] w-[18px]" />}
-        error={errors.email?.message}
-        {...register('email')}
-      />
-      <Field
-        id="login-password"
-        label="Password"
-        labelAction={
-          <button
-            type="button"
-            id="forgot-password-btn"
-            onClick={onForgot}
-            className="text-[13px] font-medium text-muted transition-colors hover:text-ink"
-          >
-            Forgot password?
-          </button>
-        }
-        type="password"
-        autoComplete="current-password"
-        placeholder="Enter your password"
-        icon={<Lock className="h-[18px] w-[18px]" />}
-        error={errors.password?.message}
-        {...register('password')}
-      />
-
-      <PrimaryButton type="submit" id="login-submit" loading={login.isPending}>
-        Sign In
-      </PrimaryButton>
-    </form>
+    <svg viewBox="0 0 48 48" className="h-[18px] w-[18px] shrink-0" aria-hidden="true">
+      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
+      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
+    </svg>
   );
-}
-
-function RegisterForm({ role, onRoleChange }: FormProps) {
-  const register_ = useRegister();
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<RegisterData>({ resolver: zodResolver(registerSchema) });
-
-  return (
-    <form
-      id="register-form"
-      onSubmit={handleSubmit(({ name, email, password }) => register_.mutate({ name, email, password, role }))}
-      className="mt-5 space-y-4 compact:mt-4 compact:space-y-3"
-    >
-      <RolePicker label="I am a" value={role} onChange={onRoleChange} />
-
-      {register_.isError && (
-        <ErrorBanner>{apiMessage(register_.error, 'Registration failed. Please try again.')}</ErrorBanner>
-      )}
-
-      <div className="grid gap-4 compact:gap-3 sm:grid-cols-2 sm:gap-3">
-        <Field
-          id="register-name"
-          label="Full name"
-          autoComplete="name"
-          placeholder="Your name"
-          icon={<UserIcon className="h-[18px] w-[18px]" />}
-          error={errors.name?.message}
-          {...register('name')}
-        />
-        <Field
-          id="register-email"
-          label="Email"
-          type="email"
-          autoComplete="email"
-          placeholder="you@mail.com"
-          icon={<Mail className="h-[18px] w-[18px]" />}
-          error={errors.email?.message}
-          {...register('email')}
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Field
-          id="register-password"
-          label="Password"
-          type="password"
-          autoComplete="new-password"
-          placeholder="••••••••"
-          icon={<Lock className="h-[18px] w-[18px]" />}
-          error={errors.password?.message}
-          {...register('password')}
-        />
-        <Field
-          id="register-confirm-password"
-          label="Confirm"
-          type="password"
-          autoComplete="new-password"
-          placeholder="••••••••"
-          icon={<Lock className="h-[18px] w-[18px]" />}
-          error={errors.confirmPassword?.message}
-          {...register('confirmPassword')}
-        />
-      </div>
-
-      <PrimaryButton type="submit" id="register-submit" loading={register_.isPending}>
-        Create Account
-      </PrimaryButton>
-    </form>
-  );
-}
-
-function ForgotPassword({ onBack }: { onBack: () => void }) {
-  const forgotPassword = useForgotPassword();
-  const [email, setEmail] = useState('');
-
-  const send = () => {
-    if (email.trim()) forgotPassword.mutate(email.trim());
-  };
-
-  return (
-    <div className="space-y-5">
-      <button
-        type="button"
-        onClick={onBack}
-        className="flex items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-ink"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back to sign in
-      </button>
-      <div>
-        <h1 className="text-[28px] font-semibold leading-tight tracking-tight">Reset password</h1>
-        <p className="mt-1.5 text-sm text-muted">We'll email you a link to set a new one.</p>
-      </div>
-
-      {forgotPassword.isSuccess ? (
-        <div className="flex items-start gap-3 rounded-2xl bg-emerald-50 px-4 py-3.5">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-          <div>
-            <p className="text-sm font-semibold text-emerald-900">Reset link sent</p>
-            <p className="mt-0.5 text-sm text-emerald-800/80">Check your inbox (and spam folder).</p>
-          </div>
-        </div>
-      ) : (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            send();
-          }}
-          className="space-y-5"
-        >
-          <Field
-            id="reset-email"
-            label="Email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            icon={<Mail className="h-[18px] w-[18px]" />}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoFocus
-          />
-          {forgotPassword.isError && (
-            <ErrorBanner>{apiMessage(forgotPassword.error, 'Failed to send reset email. Please try again.')}</ErrorBanner>
-          )}
-          <PrimaryButton type="submit" id="send-reset-btn" loading={forgotPassword.isPending}>
-            Send Reset Link
-          </PrimaryButton>
-        </form>
-      )}
-    </div>
-  );
-}
-
-/* ─── Building blocks ─────────────────────────────────────────────────── */
-
-function RolePicker({ label, value, onChange }: { label: string; value: Role; onChange: (role: Role) => void }) {
-  return (
-    <div>
-      <p className="mb-2 text-[13px] font-medium">{label}</p>
-      <div role="radiogroup" aria-label={label} className="grid grid-cols-2 gap-3">
-        {ROLES.map(({ value: r, title, description, icon: Icon }) => {
-          const selected = value === r;
-          return (
-            <button
-              key={r}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              id={`role-${r}`}
-              onClick={() => onChange(r)}
-              className={cn(
-                'relative flex flex-col items-start gap-2.5 rounded-[22px] border bg-white p-4 text-left compact:p-3.5 short:flex-row short:items-center short:gap-3 short:p-3 short:pr-10 transition-all duration-200',
-                selected
-                  ? 'border-ink shadow-[0_14px_30px_-16px_rgba(17,17,17,0.45)]'
-                  : 'border-black/[0.07] hover:border-black/20'
-              )}
-            >
-              <span
-                className={cn(
-                  'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors',
-                  selected ? 'bg-ink text-white' : 'bg-surface text-ink'
-                )}
-              >
-                <Icon className="h-5 w-5" />
-              </span>
-              <span>
-                <span className="block text-sm font-semibold">{title}</span>
-                <span className="mt-0.5 block text-xs leading-snug text-muted compact:hidden">{description}</span>
-              </span>
-              <span
-                className={cn(
-                  'absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-md border transition-colors',
-                  selected ? 'border-accent bg-accent text-white' : 'border-black/15'
-                )}
-              >
-                {selected && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-interface FieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label: string;
-  /** Shown at the right of the label row, e.g. "Forgot password?" */
-  labelAction?: React.ReactNode;
-  icon: React.ReactNode;
-  error?: string;
-}
-
-const Field = forwardRef<HTMLInputElement, FieldProps>(({ label, labelAction, icon, error, id, type, ...props }, ref) => {
-  const [visible, setVisible] = useState(false);
-  const isPassword = type === 'password';
-
-  return (
-    <div>
-      <div className="mb-1.5 flex items-center justify-between compact:mb-1">
-        <label htmlFor={id} className="text-[13px] font-medium">
-          {label}
-        </label>
-        {labelAction}
-      </div>
-      <div className="relative">
-        <span className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-muted">{icon}</span>
-        <input
-          ref={ref}
-          id={id}
-          type={isPassword && visible ? 'text' : type}
-          aria-invalid={Boolean(error)}
-          className={cn(
-            'h-12 w-full rounded-2xl border border-transparent bg-surface compact:h-11 pl-13 pr-5 text-sm outline-none transition-all duration-200',
-            'placeholder:text-muted/80 focus:border-black/10 focus:bg-white focus:ring-4 focus:ring-black/[0.04]',
-            isPassword && 'pr-13',
-            error && 'border-red-300 bg-red-50/50'
-          )}
-          {...props}
-        />
-        {isPassword && (
-          <button
-            type="button"
-            onClick={() => setVisible((v) => !v)}
-            aria-label={visible ? 'Hide password' : 'Show password'}
-            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-lg p-1 text-muted transition-colors hover:text-ink"
-          >
-            {visible ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
-          </button>
-        )}
-      </div>
-      {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
-    </div>
-  );
-});
-Field.displayName = 'Field';
-
-function PrimaryButton({
-  loading,
-  children,
-  ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { loading?: boolean }) {
-  return (
-    <button
-      {...props}
-      disabled={loading || props.disabled}
-      className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-ink compact:h-11 text-sm font-medium text-white shadow-[0_14px_28px_-14px_rgba(17,17,17,0.7)] transition-all duration-200 hover:bg-black/85 active:scale-[0.99] disabled:opacity-60"
-    >
-      {loading && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />}
-      {children}
-    </button>
-  );
-}
-
-function ErrorBanner({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{children}</div>;
 }

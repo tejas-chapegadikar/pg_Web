@@ -229,11 +229,15 @@ exports.addImages = async (id, ownerId, images) => {
 /**
  * Remove an image from a PG listing
  */
-exports.removeImage = async (id, ownerId, publicId, cloudinary) => {
+exports.removeImage = async (id, ownerId, publicId, deleteStoredImage) => {
   const pg = await PGListing.findOne({ _id: id, owner: ownerId });
   if (!pg) throw new AppError('PG not found or not authorized.', 404);
+  // Only delete files that belong to this listing
+  if (!pg.images.some((img) => img.publicId === publicId)) {
+    throw new AppError('Image not found on this listing.', 404);
+  }
 
-  await cloudinary.uploader.destroy(publicId);
+  await deleteStoredImage(publicId);
   pg.images = pg.images.filter((img) => img.publicId !== publicId);
   await pg.save();
   return pg;

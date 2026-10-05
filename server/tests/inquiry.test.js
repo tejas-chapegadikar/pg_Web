@@ -3,6 +3,7 @@ const app = require('../app');
 const User = require('../models/User');
 const PGListing = require('../models/PGListing');
 const Inquiry = require('../models/Inquiry');
+const { registerUser } = require('./auth.helper');
 
 describe('Inquiry Routes', () => {
   let ownerToken;
@@ -12,13 +13,13 @@ describe('Inquiry Routes', () => {
 
   beforeAll(async () => {
     // Register owner
-    const ownerRes = await request(app).post('/api/auth/register').send({
+    const ownerRes = await registerUser(app, {
       name: 'Owner', email: 'owner@test.com', password: 'password', role: 'owner'
     });
     ownerToken = ownerRes.body.data.accessToken;
 
     // Register student
-    const studentRes = await request(app).post('/api/auth/register').send({
+    const studentRes = await registerUser(app, {
       name: 'Student', email: 'student@test.com', password: 'password', role: 'student'
     });
     studentToken = studentRes.body.data.accessToken;

@@ -1,9 +1,10 @@
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { ChevronDown, LogOut } from 'lucide-react';
+import { ChevronDown, LogOut, Plus } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useLogout } from '@/hooks/useAuth';
 import { cn, getInitials } from '@/lib/utils';
+import { buttonClasses } from '@/components/ds/styles';
 import { ChatbotWidget } from '@/components/chatbot/ChatbotWidget';
 import logo from '@/assets/logo-dark.png';
 
@@ -30,19 +31,22 @@ function useNavItems() {
   const { user } = useAuthStore();
   return user?.role === 'owner'
     ? [
-        { to: '/', label: 'Explore' },
-        { to: '/dashboard', label: 'Dashboard' },
-        { to: '/dashboard/inquiries', label: 'Requests' },
+        { to: '/', label: 'Explore', end: true },
+        { to: '/dashboard', label: 'Dashboard', end: true },
+        // Also highlighted while adding or editing a listing
+        { to: '/dashboard/listings', label: 'My listings', end: false },
+        { to: '/dashboard/inquiries', label: 'Requests', end: true },
       ]
     : [
-        { to: '/', label: 'Explore' },
-        { to: '/dashboard/saved', label: 'Saved' },
-        { to: '/dashboard/inquiries', label: 'My requests' },
+        { to: '/', label: 'Explore', end: true },
+        { to: '/dashboard/saved', label: 'Saved', end: true },
+        { to: '/dashboard/inquiries', label: 'My requests', end: true },
       ];
 }
 
 function SiteHeader() {
   const nav = useNavItems();
+  const { user } = useAuthStore();
 
   return (
     <header className="sticky top-0 z-40 border-b border-black/[0.06] bg-white/90 backdrop-blur-md">
@@ -55,7 +59,7 @@ function SiteHeader() {
             <NavLink
               key={item.to}
               to={item.to}
-              end
+              end={item.end}
               className={({ isActive }) =>
                 cn(
                   'rounded-xl px-3.5 py-2 text-sm font-medium transition-colors',
@@ -67,7 +71,13 @@ function SiteHeader() {
             </NavLink>
           ))}
         </nav>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-3">
+          {user?.role === 'owner' && (
+            <Link to="/dashboard/listings/new" id="header-add-listing" className={buttonClasses('primary', 'sm', 'hidden sm:inline-flex')}>
+              <Plus className="h-4 w-4" />
+              Add listing
+            </Link>
+          )}
           <UserMenu />
         </div>
       </div>
@@ -125,6 +135,17 @@ function UserMenu() {
               </Link>
             </DropdownMenu.Item>
           ))}
+          {user.role === 'owner' && (
+            <DropdownMenu.Item asChild>
+              <Link
+                to="/dashboard/listings/new"
+                className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium outline-none data-[highlighted]:bg-surface sm:hidden"
+              >
+                <Plus className="h-4 w-4" />
+                Add listing
+              </Link>
+            </DropdownMenu.Item>
+          )}
           <DropdownMenu.Separator className="my-1 h-px bg-black/[0.06] md:hidden" />
           <DropdownMenu.Item
             id="logout-btn"

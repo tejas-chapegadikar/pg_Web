@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
+import { homeFor } from '@/hooks/useAuth';
 
 interface ProtectedRouteProps {
   role?: 'student' | 'owner';
@@ -17,8 +18,8 @@ export function ProtectedRoute({ role }: ProtectedRouteProps) {
   useEffect(() => {
     if (isAuthenticated && isRoleMismatch) {
       addToast({
-        title: 'Access Denied',
-        description: `This page is restricted to ${role}s only.`,
+        title: role === 'owner' ? 'That page is for brokers' : 'That page is for students',
+        description: 'We’ve taken you to your home page instead.',
         variant: 'destructive',
       });
     }
@@ -28,8 +29,8 @@ export function ProtectedRoute({ role }: ProtectedRouteProps) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  if (isRoleMismatch) {
-    return <Navigate to="/dashboard" replace />;
+  if (isRoleMismatch && user) {
+    return <Navigate to={homeFor(user.role)} replace />;
   }
 
   return <Outlet />;

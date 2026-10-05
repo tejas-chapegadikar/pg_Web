@@ -1,6 +1,7 @@
 const request = require('supertest');
 const app = require('../app');
 const User = require('../models/User');
+const { registerUser } = require('./auth.helper');
 
 describe('Auth Routes', () => {
   const testUser = {
@@ -15,10 +16,8 @@ describe('Auth Routes', () => {
   });
 
   it('should register a new user successfully', async () => {
-    const res = await request(app)
-      .post('/api/auth/register')
-      .send(testUser);
-    
+    const res = await registerUser(app, testUser);
+
     expect(res.statusCode).toBe(201);
     expect(res.body.status).toBe('success');
     expect(res.body.data.user.email).toBe(testUser.email);
