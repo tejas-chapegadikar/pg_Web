@@ -1,10 +1,6 @@
 {
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "https://api-ghar.aniecorp.in/api/:path*"
-    },
-    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
