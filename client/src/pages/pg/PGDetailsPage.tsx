@@ -140,7 +140,7 @@ export function PGDetailsPage() {
         )}
       </div>
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_380px]">
+      <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_380px] 2xl:grid-cols-[1fr_440px]">
         {/* On phones the price + request card comes straight after the title */}
         <aside className="lg:order-last">
           <div className="space-y-4 lg:sticky lg:top-24">
@@ -254,7 +254,7 @@ function Gallery({ pg, onOpen }: { pg: PGListing; onOpen: (i: number) => void })
   }
 
   return (
-    <div className={cn('grid h-[280px] grid-rows-[minmax(0,1fr)] gap-3 sm:h-[400px] lg:h-[460px]', side.length > 0 && 'lg:grid-cols-[2fr_1fr]')}>
+    <div className={cn('grid h-[280px] grid-rows-[minmax(0,1fr)] gap-3 sm:h-[400px] lg:h-[460px] xl:h-[540px] 2xl:h-[620px]', side.length > 0 && 'lg:grid-cols-[2fr_1fr]')}>
       <button
         type="button"
         onClick={() => onOpen(0)}
@@ -676,10 +676,10 @@ function DetailsSkeleton() {
   return (
     <div>
       <div className="mb-5 h-11 w-24 animate-pulse rounded-2xl bg-surface" />
-      <div className="h-[280px] animate-pulse rounded-[28px] bg-surface sm:h-[400px] lg:h-[460px]" />
+      <div className="h-[280px] animate-pulse rounded-[28px] bg-surface sm:h-[400px] lg:h-[460px] xl:h-[540px] 2xl:h-[620px]" />
       <div className="mt-6 h-8 w-2/3 animate-pulse rounded-full bg-surface" />
       <div className="mt-3 h-4 w-1/2 animate-pulse rounded-full bg-surface" />
-      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_380px]">
+      <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_380px] 2xl:grid-cols-[1fr_440px]">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-28 animate-pulse rounded-2xl bg-surface" />

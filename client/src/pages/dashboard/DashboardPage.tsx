@@ -58,7 +58,7 @@ export function DashboardPage() {
             <StatTile tint="amber" icon={<Heart className="h-5 w-5" />} label="Saved by students" value={stats?.totalSaves ?? 0} />
           </div>
 
-          <div className="mt-8 grid gap-6 lg:grid-cols-[1.35fr_1fr]">
+          <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[1.35fr_1fr]">
             <Panel title="Latest requests" link={{ to: '/dashboard/inquiries', label: 'All requests' }}>
               {inboxLoading ? (
                 <RowsSkeleton />
@@ -202,7 +202,7 @@ function DashboardSkeleton() {
           <div key={i} className="h-36 animate-pulse rounded-[24px] bg-surface" />
         ))}
       </div>
-      <div className="mt-8 grid gap-6 lg:grid-cols-[1.35fr_1fr]">
+      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[1.35fr_1fr]">
         <div className="h-72 animate-pulse rounded-[28px] bg-surface" />
         <div className="h-72 animate-pulse rounded-[28px] bg-surface" />
       </div>

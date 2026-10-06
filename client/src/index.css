@@ -11,6 +11,8 @@
   --color-backdrop: #eceef2;
   --color-muted: #8a8a93;
   --color-accent: #4f6bed;
+  /* Big desktop monitors (1920px+) */
+  --breakpoint-3xl: 120rem;
 }
 
 /* Tighter layout so single-screen pages (auth) fit without scrolling */

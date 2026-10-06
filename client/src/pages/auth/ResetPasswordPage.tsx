@@ -8,7 +8,7 @@ import { useResetPassword } from '@/hooks/useAuth';
 import { Button } from '@/components/ds/Button';
 import { Field } from '@/components/ds/Field';
 import { buttonClasses } from '@/components/ds/styles';
-import logo from '@/assets/logo-dark.png';
+import logo from '@/assets/logo-mark.svg';
 import { ErrorBanner } from './authParts';
 import { apiMessage } from './authShared';
 
@@ -53,7 +53,7 @@ export function ResetPasswordPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-backdrop p-4 font-display text-ink">
       <div className="w-full max-w-md rounded-[32px] bg-white p-6 shadow-[0_40px_90px_-30px_rgba(15,23,42,0.25)] animate-fade-in sm:p-8">
-        <img src={logo} alt="Anei Ghar" className="h-10 w-auto" />
+        <img src={logo} alt="Anei Ghar" className="h-11 w-auto" />
         <h1 className="mt-6 text-[28px] font-semibold tracking-tight">{success ? 'Password updated' : 'Set a new password'}</h1>
         <p className="mt-1 text-sm text-muted">
           {success ? 'You can sign in with your new password now.' : 'Pick something you haven’t used before.'}

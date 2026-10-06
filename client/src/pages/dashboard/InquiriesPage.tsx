@@ -68,7 +68,7 @@ function BrokerInbox() {
           text={status ? 'No requests with this status.' : 'When students ask about one of your listings, it shows up here.'}
         />
       ) : (
-        <ul className="space-y-4">
+        <ul className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
           {inquiries.map((inq) => (
             <BrokerRequestCard key={inq._id} inquiry={inq} />
           ))}
@@ -196,7 +196,7 @@ function StudentRequests() {
           }
         />
       ) : (
-        <ul className="space-y-4">
+        <ul className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
           {inquiries.map((inq) => {
             const pg = typeof inq.pg === 'object' ? (inq.pg as PGListing) : undefined;
             const broker = (inq as Inquiry & { owner?: User | string }).owner;
@@ -244,8 +244,8 @@ function StudentRequests() {
 
 function ListSkeleton() {
   return (
-    <div className="space-y-4">
-      {Array.from({ length: 3 }).map((_, i) => (
+    <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
+      {Array.from({ length: 4 }).map((_, i) => (
         <div key={i} className="h-40 animate-pulse rounded-[24px] bg-surface" />
       ))}
     </div>

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowLeft, BedDouble, Building2, Check, ImagePlus, Loader2, MapPin, Star, Trash2, X } from 'lucide-react';
+import { ArrowLeft, BedDouble, Building2, Check, ImagePlus, Loader2, MapPin } from 'lucide-react';
 import { useCreatePG, useDeleteImage, usePGListing, useUpdatePG, useUploadImages } from '@/hooks/usePG';
 import { useUIStore } from '@/stores/uiStore';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,8 @@ import { Chip } from '@/components/ds/Chip';
 import { Field, TextArea } from '@/components/ds/Field';
 import { LocationPicker, type LocationResult } from '@/components/maps/LocationPicker';
 import { AMENITIES, GENDERS, ROOM_TYPES } from '@/components/listing/meta';
+import { PhotoTile } from '@/components/dashboard/PhotoTile';
+import { MAX_NEW_PHOTOS, MAX_PHOTO_MB, PHOTO_TYPES, isAllowedPhoto } from '@/components/dashboard/photoRules';
 import type { CreatePGPayload, PGListing } from '@/types';
 
 const RENT_INCLUDES = [
@@ -24,10 +26,6 @@ const RENT_INCLUDES = [
 ];
 
 const STEPS = ['Basics', 'Location', 'Rent & rooms', 'Facilities', 'Photos'];
-
-const MAX_NEW_PHOTOS = 10; // server accepts up to 10 per upload
-const MAX_PHOTO_MB = 10;
-const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 // Room type and BHK always have a value (set when the type is picked), so no cross-field
 // refine is needed — object-level checks only run once every field is valid, i.e. too late.
@@ -242,7 +240,7 @@ export function NewPGPage() {
     const accepted: NewPhoto[] = [];
     let rejected = 0;
     for (const file of Array.from(files)) {
-      if (!PHOTO_TYPES.includes(file.type) || file.size > MAX_PHOTO_MB * 1024 * 1024) rejected += 1;
+      if (!isAllowedPhoto(file)) rejected += 1;
       else accepted.push({ file, url: URL.createObjectURL(file) });
     }
     const room = MAX_NEW_PHOTOS - photos.length;
@@ -337,7 +335,7 @@ export function NewPGPage() {
 
   if (isEdit && loadingExisting) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4">
+      <div className="space-y-4">
         <div className="h-10 w-48 animate-pulse rounded-2xl bg-surface" />
         <div className="h-[480px] animate-pulse rounded-[28px] bg-surface" />
       </div>
@@ -362,52 +360,55 @@ export function NewPGPage() {
         </div>
       )}
 
-      <div className="mx-auto max-w-3xl animate-fade-in">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          disabled={isSubmitting}
-          className="mb-5 flex h-11 items-center gap-2 rounded-2xl bg-surface pl-3 pr-4 text-sm font-medium transition-colors hover:bg-[#ebebee] disabled:opacity-50"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back
-        </button>
+      {/* Laptops: the steps sit in a column on the left and the form fills the rest of the width */}
+      <div className="animate-fade-in lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start lg:gap-10 xl:grid-cols-[280px_minmax(0,1fr)] xl:gap-14">
+        <div className="lg:sticky lg:top-24">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            disabled={isSubmitting}
+            className="mb-5 flex h-11 items-center gap-2 rounded-2xl bg-surface pl-3 pr-4 text-sm font-medium transition-colors hover:bg-[#ebebee] disabled:opacity-50"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back
+          </button>
 
-        <p className="text-[13px] text-muted">
-          Step {step + 1} of {STEPS.length}
-        </p>
-        <h1 className="mt-0.5 text-[28px] font-semibold tracking-tight">{isEdit ? 'Edit listing' : 'Add a listing'}</h1>
+          <p className="text-[13px] text-muted">
+            Step {step + 1} of {STEPS.length}
+          </p>
+          <h1 className="mt-0.5 text-[28px] font-semibold tracking-tight">{isEdit ? 'Edit listing' : 'Add a listing'}</h1>
 
-        {/* Stepper */}
-        <ol className="scrollbar-hide -mx-4 mt-5 flex items-center gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-          {STEPS.map((label, i) => {
-            const done = i < step || (i <= maxVisited && i !== step);
-            return (
-              <li key={label} className="flex shrink-0 items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => goToStep(i)}
-                  disabled={i > maxVisited || isSubmitting}
-                  aria-current={i === step ? 'step' : undefined}
-                  className={cn(
-                    'flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-3.5 text-[13px] font-medium transition-colors',
-                    i === step ? 'bg-ink text-white' : i <= maxVisited ? 'bg-surface hover:bg-[#ebebee]' : 'text-muted'
-                  )}
-                >
-                  <span
+          {/* Stepper */}
+          <ol className="scrollbar-hide -mx-4 mt-5 flex items-center gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:px-0 lg:mt-6 lg:flex-col lg:items-stretch lg:gap-0 lg:overflow-visible">
+            {STEPS.map((label, i) => {
+              const done = i < step || (i <= maxVisited && i !== step);
+              return (
+                <li key={label} className="flex shrink-0 items-center gap-1.5 lg:flex-col lg:items-stretch lg:gap-0">
+                  <button
+                    type="button"
+                    onClick={() => goToStep(i)}
+                    disabled={i > maxVisited || isSubmitting}
+                    aria-current={i === step ? 'step' : undefined}
                     className={cn(
-                      'flex h-6 w-6 items-center justify-center rounded-full text-xs',
-                      i === step ? 'bg-white text-ink' : done ? 'bg-ink text-white' : 'bg-surface text-muted'
+                      'flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-3.5 text-[13px] font-medium transition-colors lg:w-full lg:py-2',
+                      i === step ? 'bg-ink text-white' : i <= maxVisited ? 'bg-surface hover:bg-[#ebebee]' : 'text-muted'
                     )}
                   >
-                    {done ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : i + 1}
-                  </span>
-                  {label}
-                </button>
-                {i < STEPS.length - 1 && <span className="h-px w-3 bg-black/10" />}
-              </li>
-            );
-          })}
-        </ol>
+                    <span
+                      className={cn(
+                        'flex h-6 w-6 items-center justify-center rounded-full text-xs',
+                        i === step ? 'bg-white text-ink' : done ? 'bg-ink text-white' : 'bg-surface text-muted'
+                      )}
+                    >
+                      {done ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : i + 1}
+                    </span>
+                    {label}
+                  </button>
+                  {i < STEPS.length - 1 && <span className="h-px w-3 bg-black/10 lg:ml-[18px] lg:h-3 lg:w-px" />}
+                </li>
+              );
+            })}
+          </ol>
+        </div>
 
         <form
           id="pg-form"
@@ -421,7 +422,7 @@ export function NewPGPage() {
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') e.preventDefault();
           }}
-          className="mt-6"
+          className="mt-6 lg:mt-0"
         >
           <section className="rounded-[28px] border border-black/[0.06] bg-white p-5 sm:p-8">
             {/* ── 1. Basics ── */}
@@ -709,7 +710,7 @@ export function NewPGPage() {
                 </div>
 
                 {photoCount > 0 && (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
                     {existingImages.map((img, i) => (
                       <PhotoTile
                         key={img.publicId}
@@ -796,44 +797,3 @@ function ChipGroup({ label, hint, children }: { label: string; hint?: string; ch
   );
 }
 
-function PhotoTile({
-  src,
-  cover,
-  isNew,
-  busy,
-  label,
-  onRemove,
-  disabled,
-}: {
-  src: string;
-  cover?: boolean;
-  isNew?: boolean;
-  busy?: boolean;
-  label: string;
-  onRemove: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="group relative aspect-[4/3] overflow-hidden rounded-[18px] bg-surface">
-      <img src={src} alt="" className={cn('h-full w-full object-cover transition-opacity', busy && 'opacity-40')} />
-      <div className="absolute left-2 top-2 flex gap-1.5">
-        {cover && (
-          <span className="flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium backdrop-blur-md">
-            <Star className="h-3 w-3" /> Cover
-          </span>
-        )}
-        {isNew && <span className="rounded-full bg-ink/80 px-2.5 py-1 text-[11px] font-medium text-white">New</span>}
-      </div>
-      <button
-        type="button"
-        aria-label={label}
-        title={label}
-        onClick={onRemove}
-        disabled={disabled}
-        className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 backdrop-blur-md transition-colors hover:bg-white disabled:opacity-50"
-      >
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : isNew ? <X className="h-4 w-4" /> : <Trash2 className="h-4 w-4 text-red-600" />}
-      </button>
-    </div>
-  );
-}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Building2, Eye, Heart, Loader2, MapPin, MessageSquare, Minus, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Building2, Eye, Heart, ImagePlus, Images, Loader2, MapPin, MessageSquare, Minus, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useDeletePG, useMyListings, useUpdatePG } from '@/hooks/usePG';
 import { useUIStore } from '@/stores/uiStore';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ds/EmptyState';
 import { PageHeader } from '@/components/ds/PageHeader';
 import { buttonClasses } from '@/components/ds/styles';
 import { ListingThumb } from '@/components/dashboard/parts';
+import { PhotosDialog } from '@/components/dashboard/PhotosDialog';
 import { formatRent, genderLabel, roomLabel, typeLabel, typeOf } from '@/components/listing/meta';
 import type { PGListing } from '@/types';
 
@@ -19,6 +20,8 @@ export function MyListingsPage() {
   const { data, isLoading } = useMyListings();
   const [filter, setFilter] = useState<Filter>('all');
   const [toDelete, setToDelete] = useState<PGListing | null>(null);
+  // An id, not the listing, so the window shows fresh photos after each upload
+  const [photosFor, setPhotosFor] = useState<string | null>(null);
 
   const listings: PGListing[] = data?.data?.listings ?? [];
   const available = listings.filter((l) => l.availableRooms > 0);
@@ -44,8 +47,8 @@ export function MyListingsPage() {
       />
 
       {isLoading ? (
-        <div className="space-y-4">
-          {Array.from({ length: 3 }).map((_, i) => (
+        <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-40 animate-pulse rounded-[24px] bg-surface" />
           ))}
         </div>
@@ -83,22 +86,24 @@ export function MyListingsPage() {
           {shown.length === 0 ? (
             <p className="rounded-[24px] bg-surface px-6 py-10 text-center text-sm text-muted">Nothing here right now.</p>
           ) : (
-            <ul className="space-y-4">
+            <ul className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
               {shown.map((pg) => (
-                <ListingRow key={pg._id} pg={pg} onDelete={() => setToDelete(pg)} />
+                <ListingRow key={pg._id} pg={pg} onPhotos={() => setPhotosFor(pg._id)} onDelete={() => setToDelete(pg)} />
               ))}
             </ul>
           )}
         </>
       )}
 
+      <PhotosDialog listing={listings.find((l) => l._id === photosFor) ?? null} onClose={() => setPhotosFor(null)} />
       <DeleteDialog listing={toDelete} onClose={() => setToDelete(null)} />
     </div>
   );
 }
 
-function ListingRow({ pg, onDelete }: { pg: PGListing; onDelete: () => void }) {
+function ListingRow({ pg, onPhotos, onDelete }: { pg: PGListing; onPhotos: () => void; onDelete: () => void }) {
   const isFull = pg.availableRooms <= 0;
+  const photoCount = pg.images?.length ?? 0;
   return (
     <li className="flex flex-col gap-4 rounded-[24px] border border-black/[0.06] bg-white p-3 sm:flex-row sm:items-center">
       <Link to={`/pg/${pg._id}`} className="block sm:w-44">
@@ -109,8 +114,14 @@ function ListingRow({ pg, onDelete }: { pg: PGListing; onDelete: () => void }) {
         <div className="flex items-center gap-2">
           <span className="rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium">{typeLabel(typeOf(pg))}</span>
           {isFull && <span className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700">Full</span>}
-          {(pg.images?.length ?? 0) === 0 && (
-            <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800">No photos</span>
+          {photoCount === 0 && (
+            <button
+              type="button"
+              onClick={onPhotos}
+              className="flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-100"
+            >
+              <ImagePlus className="h-3 w-3" /> No photos · Add
+            </button>
           )}
         </div>
         <Link to={`/pg/${pg._id}`} className="mt-2 block truncate text-[15px] font-semibold hover:underline">
@@ -137,9 +148,14 @@ function ListingRow({ pg, onDelete }: { pg: PGListing; onDelete: () => void }) {
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-black/[0.06] px-1 pt-3 sm:flex-col sm:items-end sm:border-0 sm:px-2 sm:pt-0">
+      {/* On phones the buttons drop below the availability control instead of running off the card */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-black/[0.06] px-1 pt-3 sm:flex-col sm:flex-nowrap sm:items-end sm:border-0 sm:px-2 sm:pt-0">
         <AvailabilityControl pg={pg} />
         <div className="flex gap-1.5">
+          <button type="button" id={`photos-${pg._id}`} onClick={onPhotos} className={buttonClasses('secondary', 'sm')}>
+            <Images className="h-3.5 w-3.5" />
+            Photos{photoCount > 0 && <span className="text-muted">{photoCount}</span>}
+          </button>
           <Link to={`/dashboard/listings/${pg._id}/edit`} id={`edit-${pg._id}`} className={buttonClasses('secondary', 'sm')}>
             <Pencil className="h-3.5 w-3.5" />
             Edit
@@ -206,7 +222,7 @@ function AvailabilityControl({ pg }: { pg: PGListing }) {
 
   return (
     <div className="flex items-center gap-2.5 text-[13px]">
-      <span className="text-muted">Rooms free</span>
+      <span className="whitespace-nowrap text-muted">Rooms free</span>
       <div className="flex items-center rounded-xl bg-surface p-1">
         <button
           type="button"

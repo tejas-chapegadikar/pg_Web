@@ -73,8 +73,11 @@ export function useUploadImages() {
   return useMutation({
     mutationFn: ({ id, files }: { id: string; files: File[] }) =>
       pgApi.uploadImages(id, files),
+    // Photos show on the listing page, the cards and "My listings"
     onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: pgKeys.detail(id) });
+      qc.invalidateQueries({ queryKey: pgKeys.lists() });
+      qc.invalidateQueries({ queryKey: pgKeys.myListings() });
     },
   });
 }
@@ -86,6 +89,8 @@ export function useDeleteImage() {
       pgApi.deleteImage({ id, publicId }),
     onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: pgKeys.detail(id) });
+      qc.invalidateQueries({ queryKey: pgKeys.lists() });
+      qc.invalidateQueries({ queryKey: pgKeys.myListings() });
     },
   });
 }

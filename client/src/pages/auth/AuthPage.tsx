@@ -6,7 +6,7 @@ import { firebaseErrorMessage, getGoogleIdToken, isFirebaseConfigured } from '@/
 import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/lib/utils';
 import { buttonClasses } from '@/components/ds/styles';
-import logo from '@/assets/logo-dark.png';
+import logo from '@/assets/logo-mark.svg';
 import { ErrorBanner, RoleMismatchBanner } from './authParts';
 import { FIREBASE_MISSING, apiMessage, type Mode, type Role } from './authShared';
 import { ForgotPassword, LoginForm, RegisterForm } from './PasswordForms';
@@ -80,14 +80,14 @@ export function AuthPage({ mode }: { mode: Mode }) {
 
   return (
     <div className="min-h-screen bg-white font-display text-ink sm:bg-backdrop sm:p-6 lg:flex lg:items-center lg:justify-center lg:p-6 short:p-4">
-      {/* Fixed card height (not content-driven) so Sign In and Sign Up are exactly the same size */}
-      <div className="mx-auto grid w-full max-w-[1180px] grid-cols-1 bg-white sm:min-h-[calc(100dvh-3rem)] sm:rounded-[36px] sm:shadow-[0_40px_90px_-30px_rgba(15,23,42,0.25)] lg:h-[min(780px,calc(100dvh-3rem))] lg:min-h-0 lg:grid-cols-[1.05fr_1fr] lg:gap-4 lg:p-4 short:h-[calc(100dvh-2rem)]">
+      {/* Fills the screen; height comes from the window, not the content, so Sign In and Sign Up are exactly the same size */}
+      <div className="mx-auto grid w-full grid-cols-1 bg-white sm:min-h-[calc(100dvh-3rem)] sm:rounded-[36px] sm:shadow-[0_40px_90px_-30px_rgba(15,23,42,0.25)] lg:h-[calc(100dvh-3rem)] lg:min-h-0 lg:grid-cols-[1.05fr_1fr] lg:gap-4 lg:p-4 short:h-[calc(100dvh-2rem)]">
         <HeroPanel />
 
         <main className="flex min-w-0 flex-col px-5 py-6 compact:py-4 sm:px-10 lg:overflow-y-auto lg:px-10 lg:py-5 short:py-3">
           {/* Logo (mobile only — on desktop it sits on the hero) */}
           <div className="flex justify-center lg:hidden">
-            <img src={logo} alt="Anei Ghar" className="h-10 w-auto" />
+            <img src={logo} alt="Anei Ghar" className="h-11 w-auto" />
           </div>
 
           <div className="mx-auto flex w-full max-w-[440px] flex-1 flex-col justify-center py-5 compact:py-3 lg:py-3">
@@ -215,8 +215,8 @@ function HeroPanel() {
           />
         ))}
 
-        <span className="absolute left-5 top-5 rounded-2xl bg-white/90 px-3 py-2 backdrop-blur-md">
-          <img src={logo} alt="Anei Ghar" className="h-8 w-auto" />
+        <span className="absolute left-5 top-5 rounded-2xl bg-white/90 p-3 backdrop-blur-md">
+          <img src={logo} alt="Anei Ghar" className="h-10 w-auto" />
         </span>
       </div>
 
