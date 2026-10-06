@@ -66,7 +66,12 @@ app.use(morgan(process.env.NODE_ENV === 'development' ? 'dev' : 'combined'));
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  const { dbProblem } = req.app.locals; // set by server.js when the database connection failed
+  res.status(dbProblem ? 503 : 200).json({
+    status: dbProblem ? 'database-error' : 'ok',
+    ...(dbProblem && { problem: dbProblem }),
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
