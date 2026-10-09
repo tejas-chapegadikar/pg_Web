@@ -7,9 +7,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { cn } from '@/lib/utils';
 import { buttonClasses } from '@/components/ds/styles';
 import logo from '@/assets/logo-mark.svg';
-import { ErrorBanner, RoleMismatchBanner } from './authParts';
+import { ErrorBanner, RoleMismatchBanner, RolePicker } from './authParts';
 import { FIREBASE_MISSING, apiMessage, type Mode, type Role } from './authShared';
-import { ForgotPassword, LoginForm, RegisterForm } from './PasswordForms';
 
 const unsplash = (id: string) => `https://images.unsplash.com/${id}?w=1400&q=80&auto=format&fit=crop`;
 
@@ -38,7 +37,6 @@ export function AuthPage({ mode }: { mode: Mode }) {
   // Set by ProtectedRoute when someone opens a page (e.g. a shared PG link) before signing in
   const from = (location.state as { from?: { pathname: string; search: string } } | null)?.from;
   const [role, setRole] = useState<Role>('student');
-  const [forgotMode, setForgotMode] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated || !user) return;
@@ -76,12 +74,12 @@ export function AuthPage({ mode }: { mode: Mode }) {
     googleProblem ?? (google.error && !googleMismatch ? apiMessage(google.error, 'Google sign-in failed. Please try again.') : null);
 
   const isLogin = mode === 'login';
-  const showForgot = forgotMode && isLogin;
+  const busy = googleOpening || google.isPending;
 
   return (
     <div className="min-h-screen bg-white font-display text-ink sm:bg-backdrop sm:p-6 lg:flex lg:items-center lg:justify-center lg:p-6 short:p-4">
       {/* Fills the screen; height comes from the window, not the content, so Sign In and Sign Up are exactly the same size */}
-      <div className="mx-auto grid w-full grid-cols-1 bg-white sm:min-h-[calc(100dvh-3rem)] sm:rounded-[36px] sm:shadow-[0_40px_90px_-30px_rgba(15,23,42,0.25)] lg:h-[calc(100dvh-3rem)] lg:min-h-0 lg:grid-cols-[1.05fr_1fr] lg:gap-4 lg:p-4 short:h-[calc(100dvh-2rem)]">
+      <div className="mx-auto grid min-h-dvh w-full grid-cols-1 bg-white sm:min-h-[calc(100dvh-3rem)] sm:rounded-[36px] sm:shadow-[0_40px_90px_-30px_rgba(15,23,42,0.25)] lg:h-[calc(100dvh-3rem)] lg:min-h-0 lg:grid-cols-[1.05fr_1fr] lg:gap-4 lg:p-4 short:h-[calc(100dvh-2rem)]">
         <HeroPanel />
 
         <main className="flex min-w-0 flex-col px-5 py-6 compact:py-4 sm:px-10 lg:overflow-y-auto lg:px-10 lg:py-5 short:py-3">
@@ -91,95 +89,87 @@ export function AuthPage({ mode }: { mode: Mode }) {
           </div>
 
           <div className="mx-auto flex w-full max-w-[440px] flex-1 flex-col justify-center py-5 compact:py-3 lg:py-3">
-            {showForgot ? (
-              <ForgotPassword onBack={() => setForgotMode(false)} />
-            ) : (
-              <>
-                <h1 className="text-[28px] font-semibold leading-tight tracking-tight sm:text-[30px] compact:text-[26px]">
-                  {isLogin ? 'Welcome back' : 'Create account'}
-                </h1>
-                <p className="mt-1.5 text-sm text-muted compact:hidden">
-                  {isLogin ? 'Sign in to continue your PG search.' : 'Join Anei Ghar in less than a minute.'}
-                </p>
+            {/* Google is the only way in for now (email + password and email codes are switched off) */}
+            <h1 className="text-[28px] font-semibold leading-tight tracking-tight sm:text-[30px] compact:text-[26px]">
+              {isLogin ? 'Welcome back' : 'Create account'}
+            </h1>
+            <p className="mt-1.5 text-sm text-muted">
+              {isLogin ? 'Sign in with Google to continue your PG search.' : 'Join Anei Ghar with your Google account in a few seconds.'}
+            </p>
 
-                {/* Tabs */}
-                <div className="mt-6 flex gap-8 border-b border-black/[0.06] compact:mt-4">
-                  {(['login', 'register'] as const).map((m) => (
-                    <Link
-                      key={m}
-                      to={m === 'login' ? '/login' : '/register'}
-                      state={location.state}
-                      replace
-                      className={cn(
-                        'relative pb-3 text-sm font-medium transition-colors',
-                        mode === m ? 'text-ink' : 'text-muted hover:text-ink'
-                      )}
-                    >
-                      {m === 'login' ? 'Sign In' : 'Sign Up'}
-                      {mode === m && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-ink" />}
-                    </Link>
-                  ))}
-                </div>
-
-                {isLogin ? (
-                  <LoginForm role={role} onRoleChange={setRole} onForgot={() => setForgotMode(true)} />
-                ) : (
-                  <RegisterForm role={role} onRoleChange={setRole} />
-                )}
-
-                {/* Divider */}
-                <div className="my-4 flex items-center gap-4 text-xs text-muted compact:my-3">
-                  <span className="h-px flex-1 bg-black/[0.07]" />
-                  or
-                  <span className="h-px flex-1 bg-black/[0.07]" />
-                </div>
-
-                {googleMismatch ? (
-                  <div className="mb-3">
-                    <RoleMismatchBanner
-                      actualRole={googleMismatch.actualRole}
-                      onSwitch={(r) => {
-                        setRole(r);
-                        google.reset();
-                      }}
-                    />
-                  </div>
-                ) : (
-                  googleError && (
-                    <div className="mb-3">
-                      <ErrorBanner>{googleError}</ErrorBanner>
-                    </div>
-                  )
-                )}
-
-                <button
-                  type="button"
-                  id="google-btn"
-                  onClick={continueWithGoogle}
-                  disabled={googleOpening || google.isPending}
-                  className={buttonClasses('secondary', 'md', 'w-full')}
-                >
-                  {googleOpening || google.isPending ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/15 border-t-ink" />
-                  ) : (
-                    <GoogleLogo />
+            {/* Tabs */}
+            <div className="mt-6 flex gap-8 border-b border-black/[0.06] compact:mt-4">
+              {(['login', 'register'] as const).map((m) => (
+                <Link
+                  key={m}
+                  to={m === 'login' ? '/login' : '/register'}
+                  state={location.state}
+                  replace
+                  className={cn(
+                    'relative pb-3 text-sm font-medium transition-colors',
+                    mode === m ? 'text-ink' : 'text-muted hover:text-ink'
                   )}
-                  Continue with Google
-                </button>
+                >
+                  {m === 'login' ? 'Sign In' : 'Sign Up'}
+                  {mode === m && <span className="absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-ink" />}
+                </Link>
+              ))}
+            </div>
 
-                <p className="mt-5 text-center text-[13px] text-muted compact:mt-3">
-                  {isLogin ? 'New to Anei Ghar? ' : 'Already have an account? '}
-                  <Link
-                    to={isLogin ? '/register' : '/login'}
-                    state={location.state}
-                    replace
-                    className="font-semibold text-ink underline-offset-4 hover:underline"
-                  >
-                    {isLogin ? 'Create an account' : 'Sign in'}
-                  </Link>
-                </p>
-              </>
-            )}
+            <div className="mt-6 space-y-4 compact:mt-4 compact:space-y-3">
+              <RolePicker
+                label={isLogin ? 'Sign in as' : 'I am a'}
+                value={role}
+                onChange={(r) => {
+                  setRole(r);
+                  setGoogleProblem(null);
+                  google.reset();
+                }}
+              />
+
+              {googleMismatch ? (
+                <RoleMismatchBanner
+                  actualRole={googleMismatch.actualRole}
+                  onSwitch={(r) => {
+                    setRole(r);
+                    google.reset();
+                  }}
+                />
+              ) : (
+                googleError && <ErrorBanner>{googleError}</ErrorBanner>
+              )}
+
+              <button
+                type="button"
+                id="google-btn"
+                onClick={continueWithGoogle}
+                disabled={busy}
+                className={buttonClasses('secondary', 'md', 'h-12 w-full text-[15px]')}
+              >
+                {busy ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/15 border-t-ink" />
+                ) : (
+                  <GoogleLogo />
+                )}
+                {isLogin ? 'Sign in with Google' : 'Sign up with Google'}
+              </button>
+
+              <p className="text-center text-[13px] text-muted">
+                {isLogin ? 'New here? Signing in creates your account. ' : 'Already joined? '}
+                <Link
+                  to={isLogin ? '/register' : '/login'}
+                  state={location.state}
+                  replace
+                  className="font-semibold text-ink underline-offset-4 hover:underline"
+                >
+                  {isLogin ? 'Sign up' : 'Sign in'}
+                </Link>
+              </p>
+            </div>
+
+            <p className="mt-8 text-center text-xs leading-relaxed text-muted compact:mt-5">
+              We only use your name, email and profile photo from Google.
+            </p>
           </div>
         </main>
       </div>

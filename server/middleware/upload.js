@@ -1,10 +1,8 @@
-const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
+const mongoose = require('mongoose');
 const cloudinary = require('cloudinary').v2;
 const multer = require('multer');
 const { Readable } = require('stream');
-const AppError = require('../utils/AppError');
+const ImageFile = require('../models/ImageFile');
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -15,9 +13,8 @@ cloudinary.config({
 const isCloudinaryConfigured = () =>
   Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
 
-// Without Cloudinary (local development) photos are saved here and served at /api/uploads
-const UPLOADS_DIR = require('../utils/uploadsDir');
-const LOCAL_PREFIX = 'local/';
+// Without Cloudinary, photos are kept in MongoDB and served at /api/uploads/:id
+const DB_PREFIX = 'db/';
 
 // SVG and other image types are refused: served from our own origin they could carry scripts
 const ALLOWED_TYPES = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
@@ -82,32 +79,46 @@ const uploadToCloudinary = (buffer, options = {}) => {
   });
 };
 
-/** Save one multer file to Cloudinary, or to local disk when Cloudinary isn't set up. */
+/**
+ * Save one multer file to Cloudinary, or to MongoDB when Cloudinary isn't set up.
+ * (Serverless hosts like Vercel don't keep files on disk, so the database is the fallback.)
+ */
 const storeImage = async (file) => {
   if (isCloudinaryConfigured()) {
     const result = await uploadToCloudinary(file.buffer, { resource_type: 'image' });
     return { url: result.secure_url, publicId: result.public_id };
   }
-  if (process.env.NODE_ENV === 'production') {
-    // Serverless hosts don't keep files on disk — refuse rather than silently lose photos
-    throw new AppError('Photo uploads aren’t set up on the server yet.', 503);
-  }
 
-  await fs.promises.mkdir(UPLOADS_DIR, { recursive: true });
-  const name = `${crypto.randomBytes(12).toString('hex')}${ALLOWED_TYPES[file.mimetype]}`;
-  await fs.promises.writeFile(path.join(UPLOADS_DIR, name), file.buffer);
-  return { url: `/api/uploads/${name}`, publicId: `${LOCAL_PREFIX}${name}` };
+  const doc = await ImageFile.create({ data: file.buffer, contentType: file.mimetype, size: file.size });
+  return { url: `/api/uploads/${doc._id}`, publicId: `${DB_PREFIX}${doc._id}` };
 };
 
 /** Delete a photo saved by storeImage. */
 const deleteStoredImage = async (publicId) => {
-  if (publicId.startsWith(LOCAL_PREFIX)) {
-    // basename() keeps the delete inside UPLOADS_DIR whatever the id contains
-    const name = path.basename(publicId.slice(LOCAL_PREFIX.length));
-    await fs.promises.unlink(path.join(UPLOADS_DIR, name)).catch(() => {});
+  if (publicId.startsWith(DB_PREFIX)) {
+    const id = publicId.slice(DB_PREFIX.length);
+    if (mongoose.isValidObjectId(id)) await ImageFile.deleteOne({ _id: id });
     return;
   }
   if (isCloudinaryConfigured()) await cloudinary.uploader.destroy(publicId);
+};
+
+/** GET /api/uploads/:id — a photo kept in MongoDB */
+const serveStoredImage = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const image = mongoose.isValidObjectId(id) ? await ImageFile.findById(id) : null;
+    if (!image) return res.status(404).json({ status: 'fail', message: 'Photo not found.' });
+    res.set({
+      'Content-Type': image.contentType,
+      // A photo never changes under the same id, so browsers and Vercel's CDN can keep it
+      'Cache-Control': 'public, max-age=31536000, s-maxage=31536000, immutable',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.send(image.data);
+  } catch (err) {
+    next(err);
+  }
 };
 
 module.exports = {
@@ -117,4 +128,5 @@ module.exports = {
   uploadToCloudinary,
   storeImage,
   deleteStoredImage,
+  serveStoredImage,
 };

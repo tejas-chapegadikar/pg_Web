@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Briefcase, Check, GraduationCap, Phone, User } from 'lucide-react';
+import { Briefcase, Check, GraduationCap, User } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useUpdateProfile } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
@@ -7,13 +7,16 @@ import { Button } from '@/components/ds/Button';
 import { inputClasses } from '@/components/ds/styles';
 
 type Role = 'student' | 'owner';
-type Step = 'name' | 'role' | 'phone';
+type Step = 'name' | 'role';
 
 interface OnboardingModalProps {
   onComplete?: () => void;
 }
 
-/** Asks new accounts for whatever their sign-up method didn't give us (name, role, phone). */
+/**
+ * Asks accounts from the old phone-number login for the name and role they never gave.
+ * Google accounts already have both, so they never see it (no phone number is asked).
+ */
 export function OnboardingModal({ onComplete }: OnboardingModalProps) {
   const { user, accessToken, setAuth } = useAuthStore();
   const updateProfile = useUpdateProfile();
@@ -23,13 +26,10 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
   const steps: Step[] = [];
   if (isPhoneUser && !user?.name) steps.push('name');
   if (isPhoneUser) steps.push('role');
-  if (!isPhoneUser && !user?.phone) steps.push('phone');
 
   const [stepIndex, setStepIndex] = useState(0);
   const [name, setName] = useState(user?.name || '');
   const [role, setRole] = useState<Role>(user?.role || 'student');
-  const [phone, setPhone] = useState('');
-  const [phoneError, setPhoneError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   if (!user || steps.length === 0) return null;
@@ -37,13 +37,12 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
   const step = steps[stepIndex];
   const isLastStep = stepIndex === steps.length - 1;
 
-  const finish = async (skipPhone = false) => {
+  const finish = async () => {
     setSubmitting(true);
     try {
-      const payload: { name?: string; role?: Role; phone?: string } = {};
+      const payload: { name?: string; role?: Role } = {};
       if (steps.includes('name')) payload.name = name.trim();
       if (steps.includes('role')) payload.role = role;
-      if (steps.includes('phone') && !skipPhone && phone) payload.phone = `+91${phone}`;
 
       const res = await updateProfile.mutateAsync(payload);
       if (accessToken) setAuth(res.data.user, accessToken);
@@ -57,10 +56,6 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
 
   const next = async () => {
     if (step === 'name' && !name.trim()) return;
-    if (step === 'phone' && phone && !/^[6-9]\d{9}$/.test(phone)) {
-      setPhoneError('Enter a valid 10-digit mobile number.');
-      return;
-    }
     if (isLastStep) await finish();
     else setStepIndex((i) => i + 1);
   };
@@ -68,14 +63,6 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
   const copy: Record<Step, { icon: React.ReactNode; title: string; text: string }> = {
     name: { icon: <User className="h-5 w-5" />, title: 'What should we call you?', text: 'Your name appears on your profile and requests.' },
     role: { icon: <Briefcase className="h-5 w-5" />, title: 'How will you use Anei Ghar?', text: 'You can’t switch later, so pick the one that fits.' },
-    phone: {
-      icon: <Phone className="h-5 w-5" />,
-      title: 'Add your mobile number',
-      text:
-        user.role === 'owner'
-          ? 'Students use it to reach you about your listings.'
-          : 'Brokers use it to get back to you about your requests.',
-    },
   };
 
   return (
@@ -151,28 +138,6 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
             </div>
           )}
 
-          {step === 'phone' && (
-            <div>
-              <div className="flex gap-2">
-                <span className="flex h-12 items-center rounded-2xl bg-surface px-4 text-sm font-medium">+91</span>
-                <input
-                  id="onboarding-phone"
-                  type="tel"
-                  inputMode="numeric"
-                  placeholder="98765 43210"
-                  value={phone}
-                  onChange={(e) => {
-                    setPhone(e.target.value.replace(/\D/g, '').slice(0, 10));
-                    setPhoneError('');
-                  }}
-                  onKeyDown={(e) => e.key === 'Enter' && next()}
-                  autoFocus
-                  className={cn(inputClasses, 'h-12 flex-1 px-4', phoneError && 'border-red-300 bg-red-50/50')}
-                />
-              </div>
-              {phoneError && <p className="mt-1.5 text-xs text-red-500">{phoneError}</p>}
-            </div>
-          )}
 
           {updateProfile.isError && (
             <p className="mt-3 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">Couldn’t save that. Please try again.</p>
@@ -184,16 +149,11 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
             id="onboarding-next-btn"
             onClick={next}
             loading={submitting}
-            disabled={(step === 'name' && !name.trim()) || (step === 'phone' && phone.length > 0 && phone.length < 10)}
+            disabled={step === 'name' && !name.trim()}
             className="w-full"
           >
             {isLastStep ? 'Finish' : 'Continue'}
           </Button>
-          {step === 'phone' && (
-            <Button id="onboarding-skip-phone" variant="ghost" onClick={() => finish(true)} disabled={submitting} className="w-full text-muted">
-              Skip for now
-            </Button>
-          )}
         </div>
       </div>
     </div>

@@ -1,13 +1,6 @@
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-
-// Save test photos in a throwaway folder (read when the modules below are loaded)
-const UPLOADS_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'aneighar-uploads-'));
-process.env.UPLOADS_DIR = UPLOADS_DIR;
-
 const request = require('supertest');
 const app = require('../app');
+const ImageFile = require('../models/ImageFile');
 const { registerUser } = require('./auth.helper');
 
 // Smallest valid PNG (1×1)
@@ -16,7 +9,7 @@ const PNG = Buffer.from(
   'base64'
 );
 
-describe('Listing photos without Cloudinary (local disk)', () => {
+describe('Listing photos without Cloudinary (kept in MongoDB)', () => {
   let token;
   let otherToken;
   let pgId;
@@ -38,22 +31,29 @@ describe('Listing photos without Cloudinary (local disk)', () => {
     })).body.data.pg._id;
   });
 
-  afterAll(() => fs.rmSync(UPLOADS_DIR, { recursive: true, force: true }));
-
-  it('saves an upload to disk and serves it', async () => {
+  it('saves an upload in the database and serves it, in production too', async () => {
+    process.env.NODE_ENV = 'production'; // the live site has no disk to write to
     const res = await request(app)
       .post(`/api/pg/${pgId}/images`)
       .set('Authorization', `Bearer ${token}`)
       .attach('images', PNG, { filename: 'room.png', contentType: 'image/png' });
+    process.env.NODE_ENV = 'test';
     expect(res.statusCode).toBe(200);
 
     const [img] = res.body.data.pg.images;
-    expect(img.url).toMatch(/^\/api\/uploads\/[a-f0-9]{24}\.png$/);
-    expect(img.publicId).toMatch(/^local\//);
+    expect(img.url).toMatch(/^\/api\/uploads\/[a-f0-9]{24}$/);
+    expect(img.publicId).toMatch(/^db\//);
 
     const served = await request(app).get(img.url);
     expect(served.statusCode).toBe(200);
     expect(served.headers['content-type']).toBe('image/png');
+    expect(served.headers['cache-control']).toContain('immutable');
+    expect(Buffer.compare(served.body, PNG)).toBe(0);
+  });
+
+  it('answers 404 for unknown or malformed photo ids', async () => {
+    expect((await request(app).get('/api/uploads/0123456789abcdef01234567')).statusCode).toBe(404);
+    expect((await request(app).get('/api/uploads/not-an-id')).statusCode).toBe(404);
   });
 
   it('refuses SVGs and other types', async () => {
@@ -68,9 +68,9 @@ describe('Listing photos without Cloudinary (local disk)', () => {
 
   it('only lets the owner delete photos that belong to the listing', async () => {
     const pg = (await request(app).get(`/api/pg/${pgId}`)).body.data.pg;
-    const { publicId, url } = pg.images[0];
-    const file = path.join(UPLOADS_DIR, path.basename(url));
-    expect(fs.existsSync(file)).toBe(true);
+    const { publicId } = pg.images[0];
+    const imageId = publicId.slice('db/'.length);
+    expect(await ImageFile.exists({ _id: imageId })).toBeTruthy();
 
     // Another broker can't delete it
     const other = await request(app)
@@ -80,7 +80,7 @@ describe('Listing photos without Cloudinary (local disk)', () => {
 
     // An id that isn't on this listing is refused
     const stranger = await request(app)
-      .delete(`/api/pg/${pgId}/images/${encodeURIComponent('local/not-mine.png')}`)
+      .delete(`/api/pg/${pgId}/images/${encodeURIComponent('db/0123456789abcdef01234567')}`)
       .set('Authorization', `Bearer ${token}`);
     expect(stranger.statusCode).toBe(404);
 
@@ -89,16 +89,6 @@ describe('Listing photos without Cloudinary (local disk)', () => {
       .set('Authorization', `Bearer ${token}`);
     expect(res.statusCode).toBe(200);
     expect(res.body.data.pg.images).toHaveLength(0);
-    expect(fs.existsSync(file)).toBe(false);
-  });
-
-  it('refuses local storage in production', async () => {
-    process.env.NODE_ENV = 'production';
-    const res = await request(app)
-      .post(`/api/pg/${pgId}/images`)
-      .set('Authorization', `Bearer ${token}`)
-      .attach('images', PNG, { filename: 'room.png', contentType: 'image/png' });
-    process.env.NODE_ENV = 'test';
-    expect(res.statusCode).toBe(503);
+    expect(await ImageFile.exists({ _id: imageId })).toBeFalsy();
   });
 });

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { pgApi } from '@/api/pg';
+import { compressImage } from '@/lib/compressImage';
 import type { CreatePGPayload, PGFilters } from '@/types';
 
 export const pgKeys = {
@@ -71,8 +72,12 @@ export function useDeletePG() {
 export function useUploadImages() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, files }: { id: string; files: File[] }) =>
-      pgApi.uploadImages(id, files),
+    // One shrunk photo per request, so no single upload gets near Vercel's size limit
+    mutationFn: async ({ id, files }: { id: string; files: File[] }) => {
+      let result: Awaited<ReturnType<typeof pgApi.uploadImages>> | undefined;
+      for (const file of files) result = await pgApi.uploadImages(id, [await compressImage(file)]);
+      return result;
+    },
     // Photos show on the listing page, the cards and "My listings"
     onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: pgKeys.detail(id) });

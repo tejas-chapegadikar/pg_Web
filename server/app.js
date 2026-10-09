@@ -6,7 +6,7 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 
 const errorHandler = require('./middleware/errorHandler');
-const UPLOADS_DIR = require('./utils/uploadsDir');
+const { serveStoredImage } = require('./middleware/upload');
 const AppError = require('./utils/AppError');
 
 // Route imports
@@ -25,9 +25,9 @@ app.set('trust proxy', 1);
 // ─── Security ────────────────────────────────────────────────────────────────
 app.use(helmet());
 
-// Listing photos saved on disk when Cloudinary isn't configured (local development).
+// Listing photos kept in MongoDB when Cloudinary isn't configured.
 // Mounted before the rate limiter so a page full of photos doesn't use up the API quota.
-app.use('/api/uploads', express.static(UPLOADS_DIR, { maxAge: '7d', fallthrough: false }));
+app.get('/api/uploads/:id', serveStoredImage);
 
 // Test suites make many requests in a burst; limits still apply everywhere else
 const skipInTests = () => process.env.NODE_ENV === 'test';

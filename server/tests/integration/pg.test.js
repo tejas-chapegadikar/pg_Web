@@ -15,6 +15,7 @@ jest.mock('../../middleware/upload', () => ({
     },
   },
   handleUploadErrors: (middleware) => middleware,
+  serveStoredImage: (req, res) => res.status(404).end(),
 }));
 
 const request = require('supertest');
