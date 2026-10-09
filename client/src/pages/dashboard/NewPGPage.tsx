@@ -25,7 +25,7 @@ const RENT_INCLUDES = [
   { value: 'housekeeping', label: 'Housekeeping' },
 ];
 
-const STEPS = ['Basics', 'Location', 'Rent & rooms', 'Facilities', 'Photos'];
+const STEPS = ['Basics & photos', 'Location', 'Rent & rooms', 'Facilities'];
 
 // Room type and BHK always have a value (set when the type is picked), so no cross-field
 // refine is needed — object-level checks only run once every field is valid, i.e. too late.
@@ -62,7 +62,6 @@ const stepFields: (keyof FormData)[][] = [
   ['address', 'city', 'state', 'pincode'],
   ['rent', 'deposit', 'genderPreference', 'roomType', 'bhk', 'totalRooms', 'availableRooms', 'rentIncludes', 'additionalCharges'],
   ['amenities'],
-  [],
 ];
 
 const EMPTY: FormInput = {
@@ -425,7 +424,7 @@ export function NewPGPage() {
           className="mt-6 lg:mt-0"
         >
           <section className="rounded-[28px] border border-black/[0.06] bg-white p-5 sm:p-8">
-            {/* ── 1. Basics ── */}
+            {/* ── 1. Basics & photos ── */}
             {step === 0 && (
               <div className="space-y-6">
                 <div>
@@ -470,6 +469,67 @@ export function NewPGPage() {
                       );
                     })}
                   </div>
+                </div>
+                {/* Photos are on the first screen so brokers add them while listing, not after publishing */}
+                <div className="space-y-4">
+                <div>
+                  <p className="text-[13px] font-medium">Photos</p>
+                  <p className="mt-0.5 text-[13px] text-muted">Real photos of the rooms, kitchen and building. The first one is the cover.</p>
+                </div>
+
+                {photoCount > 0 && (
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+                    {existingImages.map((img, i) => (
+                      <PhotoTile
+                        key={img.publicId}
+                        src={img.url}
+                        cover={i === 0}
+                        busy={deletingId === img.publicId}
+                        label="Delete photo"
+                        onRemove={() => deleteExisting(img.publicId)}
+                        disabled={deletingId !== null}
+                      />
+                    ))}
+                    {photos.map((p, i) => (
+                      <PhotoTile
+                        key={p.url}
+                        src={p.url}
+                        cover={existingImages.length === 0 && i === 0}
+                        isNew
+                        label="Remove photo"
+                        onRemove={() => removePhoto(i)}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                <label
+                  htmlFor="pg-images"
+                  className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[22px] border-2 border-dashed border-black/10 bg-surface/60 px-6 py-8 text-center transition-colors hover:border-black/25"
+                >
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white">
+                    <ImagePlus className="h-5 w-5" />
+                  </span>
+                  <span className="text-sm font-semibold">{photoCount ? 'Add more photos' : 'Add photos'}</span>
+                  <span className="text-[13px] text-muted">JPG, PNG or WEBP · up to {MAX_PHOTO_MB} MB each</span>
+                  <input
+                    id="pg-images"
+                    type="file"
+                    accept={PHOTO_TYPES.join(',')}
+                    multiple
+                    className="sr-only"
+                    onChange={(e) => {
+                      addPhotos(e.target.files);
+                      e.target.value = ''; // allow picking the same file again
+                    }}
+                  />
+                </label>
+
+                {photoCount === 0 && (
+                  <p className="rounded-2xl bg-amber-50 px-4 py-3 text-[13px] text-amber-900">
+                    Listings with photos get far more requests. You can also add them later from My listings.
+                  </p>
+                )}
                 </div>
                 <Field
                   id="pg-title"
@@ -701,69 +761,6 @@ export function NewPGPage() {
               </div>
             )}
 
-            {/* ── 5. Photos ── */}
-            {step === 4 && (
-              <div className="space-y-5">
-                <div>
-                  <p className="text-[13px] font-medium">Photos</p>
-                  <p className="mt-0.5 text-[13px] text-muted">Real photos of the rooms, kitchen and building. The first one is the cover.</p>
-                </div>
-
-                {photoCount > 0 && (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-                    {existingImages.map((img, i) => (
-                      <PhotoTile
-                        key={img.publicId}
-                        src={img.url}
-                        cover={i === 0}
-                        busy={deletingId === img.publicId}
-                        label="Delete photo"
-                        onRemove={() => deleteExisting(img.publicId)}
-                        disabled={deletingId !== null}
-                      />
-                    ))}
-                    {photos.map((p, i) => (
-                      <PhotoTile
-                        key={p.url}
-                        src={p.url}
-                        cover={existingImages.length === 0 && i === 0}
-                        isNew
-                        label="Remove photo"
-                        onRemove={() => removePhoto(i)}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                <label
-                  htmlFor="pg-images"
-                  className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[22px] border-2 border-dashed border-black/10 bg-surface/60 px-6 py-10 text-center transition-colors hover:border-black/25"
-                >
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white">
-                    <ImagePlus className="h-5 w-5" />
-                  </span>
-                  <span className="text-sm font-semibold">{photoCount ? 'Add more photos' : 'Add photos'}</span>
-                  <span className="text-[13px] text-muted">JPG, PNG or WEBP · up to {MAX_PHOTO_MB} MB each</span>
-                  <input
-                    id="pg-images"
-                    type="file"
-                    accept={PHOTO_TYPES.join(',')}
-                    multiple
-                    className="sr-only"
-                    onChange={(e) => {
-                      addPhotos(e.target.files);
-                      e.target.value = ''; // allow picking the same file again
-                    }}
-                  />
-                </label>
-
-                {photoCount === 0 && (
-                  <p className="rounded-2xl bg-amber-50 px-4 py-3 text-[13px] text-amber-900">
-                    Listings with photos get far more requests. You can also publish now and add photos later.
-                  </p>
-                )}
-              </div>
-            )}
           </section>
 
           <div className="mt-6 flex items-center justify-between gap-3">
