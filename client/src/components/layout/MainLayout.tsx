@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { ChevronDown, LogOut, Plus } from 'lucide-react';
@@ -24,7 +25,7 @@ export function MainLayout() {
         <div className={cn('flex flex-wrap items-center justify-between gap-3 py-6 text-[13px] text-muted', GUTTER)}>
           <img src={logo} alt="Anei Ghar" className="h-7 w-auto opacity-80" />
           {/* Room on the right for the floating chat button */}
-          <p className="mr-16">© {new Date().getFullYear()} Anei Ghar · PGs and flats for students</p>
+          <p className="mr-16 sm:mr-40">© {new Date().getFullYear()} Anei Ghar · PGs and flats for students</p>
         </div>
       </footer>
       <ChatbotWidget />
@@ -52,9 +53,22 @@ function useNavItems() {
 function SiteHeader() {
   const nav = useNavItems();
   const { user } = useAuthStore();
+  // A soft shadow appears once the page scrolls under the header
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-black/[0.06] bg-white/90 backdrop-blur-md">
+    <header
+      className={cn(
+        'sticky top-0 z-40 border-b bg-white/90 backdrop-blur-md transition-shadow duration-300',
+        scrolled ? 'border-black/[0.04] shadow-[0_10px_30px_-18px_rgba(17,17,17,0.3)]' : 'border-black/[0.06]'
+      )}
+    >
       <div className={cn('flex h-16 items-center gap-8', GUTTER)}>
         <Link to="/" className="shrink-0" aria-label="Anei Ghar home">
           <img src={logoMark} alt="Anei Ghar" className="h-10 w-auto" />

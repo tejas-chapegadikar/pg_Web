@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BedDouble, Heart, ImageOff, MapPin, Star, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -14,12 +15,30 @@ interface ListingCardProps {
 export function ListingCard({ pg, onToggleSave, saved = false }: ListingCardProps) {
   const cover = pg.images?.[0]?.url;
   const isFull = pg.availableRooms <= 0;
+  const cardRef = useRef<HTMLAnchorElement>(null);
+  // Bumped on each save click so the heart replays its pop
+  const [popKey, setPopKey] = useState(0);
+
+  // The card tilts a little toward the mouse (mouse/trackpad only — touch scrolling stays still)
+  const onPointerMove = (e: React.PointerEvent<HTMLAnchorElement>) => {
+    if (e.pointerType !== 'mouse' || !cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    cardRef.current.style.transform = `perspective(900px) rotateX(${y * -5}deg) rotateY(${x * 6}deg) translateY(-4px)`;
+  };
+  const onPointerLeave = () => {
+    if (cardRef.current) cardRef.current.style.transform = '';
+  };
 
   return (
     <Link
+      ref={cardRef}
       to={`/pg/${pg._id}`}
       id={`listing-${pg._id}`}
-      className="group block rounded-[24px] border border-black/[0.06] bg-white p-2.5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-22px_rgba(17,17,17,0.35)]"
+      onPointerMove={onPointerMove}
+      onPointerLeave={onPointerLeave}
+      className="group block rounded-[24px] border border-black/[0.06] bg-white p-2.5 transition-[transform,box-shadow] duration-300 ease-out will-change-transform hover:shadow-[0_24px_50px_-24px_rgba(17,17,17,0.4)]"
     >
       <div className="relative aspect-[4/3] overflow-hidden rounded-[18px] bg-surface">
         {cover ? (
@@ -27,7 +46,7 @@ export function ListingCard({ pg, onToggleSave, saved = false }: ListingCardProp
             src={cover}
             alt={pg.title}
             loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-muted">
@@ -48,11 +67,19 @@ export function ListingCard({ pg, onToggleSave, saved = false }: ListingCardProp
               // The card is a link; saving shouldn't open the listing
               e.preventDefault();
               e.stopPropagation();
+              setPopKey((k) => k + 1);
               onToggleSave();
             }}
-            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 backdrop-blur-md transition-transform hover:scale-105"
+            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 backdrop-blur-md transition-transform hover:scale-110 active:scale-90"
           >
-            <Heart className={cn('h-[18px] w-[18px]', saved ? 'fill-red-500 text-red-500' : 'text-ink')} />
+            <Heart
+              key={popKey}
+              className={cn(
+                'h-[18px] w-[18px] transition-colors',
+                popKey > 0 && 'animate-pop',
+                saved ? 'fill-red-500 text-red-500' : 'text-ink'
+              )}
+            />
           </button>
         )}
 

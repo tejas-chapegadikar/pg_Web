@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
+  ArrowUp,
   BedDouble,
   Building2,
   ChevronLeft,
@@ -27,6 +28,7 @@ import { FilterSheet } from '@/components/listing/FilterSheet';
 import { Chip } from '@/components/ds/Chip';
 import { Button } from '@/components/ds/Button';
 import { EmptyState } from '@/components/ds/EmptyState';
+import { Reveal } from '@/components/ds/Reveal';
 import { EMPTY_FILTERS, countActiveFilters, type ListingFilterValues } from '@/components/listing/filters';
 import { AMENITIES, BHK_OPTIONS, COLLEGES, GENDERS, NEARBY_RADIUS_KM, ROOM_TYPES, formatRent } from '@/components/listing/meta';
 import type { PGFilters } from '@/types';
@@ -263,9 +265,11 @@ export function PGListPage() {
   return (
     <div>
       {/* ── Heading + search ── */}
-      <div className="mb-6">
+      <div className="stagger mb-6">
         {firstName && <p className="text-[13px] text-muted">Welcome, {firstName}</p>}
-        <h1 className="mt-0.5 text-[28px] font-semibold tracking-tight">Find your next stay</h1>
+        <h1 style={{ '--i': 1 } as React.CSSProperties} className="mt-0.5 text-[28px] font-semibold tracking-tight">
+          Find your next stay
+        </h1>
       </div>
 
       <div className="flex gap-3">
@@ -442,13 +446,15 @@ export function PGListPage() {
           <PGMapView listings={listings} />
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6">
-            {listings.map((pg) => (
-              <ListingCard
-                key={pg._id}
-                pg={pg}
-                saved={savedIds.has(pg._id)}
-                onToggleSave={isStudent ? () => toggleSave.mutate(pg._id) : undefined}
-              />
+            {listings.map((pg, i) => (
+              // Cards slide up as they scroll into view; cards in the same row follow each other by a beat
+              <Reveal key={pg._id} delay={(i % 4) * 90}>
+                <ListingCard
+                  pg={pg}
+                  saved={savedIds.has(pg._id)}
+                  onToggleSave={isStudent ? () => toggleSave.mutate(pg._id) : undefined}
+                />
+              </Reveal>
             ))}
           </div>
         )}
@@ -470,7 +476,34 @@ export function PGListPage() {
       )}
 
       <FilterSheet open={sheetOpen} onOpenChange={setSheetOpen} value={filters} onApply={applyFilters} />
+      <BackToTop />
     </div>
+  );
+}
+
+/** Floating button that slides in once they've scrolled down a screen or so */
+function BackToTop() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setShow(window.scrollY > 700);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  return (
+    <button
+      type="button"
+      aria-label="Back to top"
+      tabIndex={show ? 0 : -1}
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      className={cn(
+        'fixed bottom-6 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-ink px-4 py-2.5 text-[13px] font-medium text-white shadow-[0_14px_30px_-12px_rgba(17,17,17,0.6)] transition-all duration-500 ease-out hover:bg-black/85',
+        show ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-16 opacity-0'
+      )}
+    >
+      <ArrowUp className="h-4 w-4" /> Back to top
+    </button>
   );
 }
 

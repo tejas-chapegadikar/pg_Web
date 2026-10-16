@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, Building2, CalendarDays, Camera, Eye, Heart, MapPin, MessageSquare, Plus, Sparkles } from 'lucide-react';
+import { ArrowUpRight, Building2, CalendarDays, Camera, Eye, Heart, MapPin, MessageSquare, PenLine, Plus } from 'lucide-react';
 import { useDashboard, useOwnerInquiries } from '@/hooks/useInquiry';
 import { useMyListings } from '@/hooks/usePG';
 import { useAuthStore } from '@/stores/authStore';
@@ -150,7 +150,7 @@ function Panel({ title, link, children }: { title: string; link: { to: string; l
 /** First visit: no listings yet */
 function WelcomeCard() {
   const steps = [
-    { icon: Sparkles, title: 'Describe the place', text: 'PG or flat, rent, who can stay and what’s included.' },
+    { icon: PenLine, title: 'Describe the place', text: 'PG or flat, rent, who can stay and what’s included.' },
     { icon: MapPin, title: 'Pin the location', text: 'So students searching near their college find it.' },
     { icon: Camera, title: 'Add real photos', text: 'Listings with photos get far more requests.' },
   ];

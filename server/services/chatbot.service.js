@@ -26,7 +26,7 @@ exports.getRecommendations = async (userMessage, conversationHistory = [], userL
 
   if (!pgs || pgs.length === 0) {
     return {
-      reply: "I couldn't find any available PG listings in the database right now. Please check back later!",
+      reply: 'No places are listed yet. New PGs and flats show up as soon as owners add them, so check back soon.',
       recommendations: [],
     };
   }
@@ -168,22 +168,22 @@ exports.getRecommendations = async (userMessage, conversationHistory = [], userL
   // 4. Construct tailored natural language summary
   let replyText = '';
 
+  const places = (n) => `${n} ${n === 1 ? 'place' : 'places'}`;
+
   if (isNearMeQuery && minRating !== null) {
-    replyText = `Found **${topMatches.length}** PGs near your location with **${minRating}+ star ratings**:`;
+    replyText = `${places(topMatches.length)} near you rated **${minRating}+ stars**:`;
   } else if (isNearMeQuery && targetAmenities.length > 0) {
     const amenitiesList = targetAmenities.map(a => a.toUpperCase()).join(', ');
-    replyText = `Found **${topMatches.length}** PGs near you equipped with **${amenitiesList}**:`;
+    replyText = `${places(topMatches.length)} near you with **${amenitiesList}**:`;
   } else if (isNearMeQuery) {
-    replyText = `Here are the top PGs closest to your current location:`;
+    replyText = 'These are the closest to you:';
   } else if (minRating !== null) {
-    replyText = `Here are top rated PGs with **${minRating}+ star reviews**:`;
+    replyText = `Places rated **${minRating}+ stars**:`;
   } else if (targetAmenities.length > 0) {
-    replyText = `Here are PGs featuring your requested amenities (${targetAmenities.join(', ')}):`;
+    replyText = `Places with ${targetAmenities.join(', ')}:`;
   } else {
-    replyText = `Here are top matching PGs from our live database:`;
+    replyText = 'These look like a good match:';
   }
-
-  replyText += '\n\nClick **View Details** on any card below to explore photos, amenities, or contact the owner:';
 
   return {
     reply: replyText,

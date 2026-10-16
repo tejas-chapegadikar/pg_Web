@@ -1,19 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Sparkles, X, Send, Bot, User as UserIcon, Loader2, MapPin, Star,
-  BedDouble, ExternalLink, Navigation,
-} from 'lucide-react';
+import { ArrowUp, BedDouble, ChevronRight, MapPin, Navigation, Star, X } from 'lucide-react';
 import { chatbotApi, type UserLocationParam } from '@/api/chatbot';
-import { formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import type { ChatbotMessage, PGListing } from '@/types';
+import { AneiAvatar } from './AneiAvatar';
 
-// Quick prompt options requested by user
-const SUGGESTED_PROMPTS = [
-  '📍 Find PGs near me',
-  '⭐ Find PGs near me with 4+ star reviews',
-  '📶 Find PGs near me with WiFi & AC',
-];
+// Quick questions (the server reads "near me", "4+ star" and amenity names out of these)
+const SUGGESTED_PROMPTS = ['Find PGs near me', 'Near me with 4+ star reviews', 'Near me with WiFi & AC'];
 
 export function ChatbotWidget() {
   const navigate = useNavigate();
@@ -84,7 +78,7 @@ export function ChatbotWidget() {
     {
       id: 'welcome',
       sender: 'bot',
-      text: "Hi! I'm **Anei AI Assistant** 🤖. Tap any option below or type a request to find live PGs from our database!",
+      text: "Hi, I'm Anei. Tell me what you're looking for, like a budget, an area or WiFi, and I'll find places that fit.",
       timestamp: new Date(),
     },
   ]);
@@ -97,14 +91,14 @@ export function ChatbotWidget() {
     if (isOpen) {
       scrollToBottom();
     }
-  }, [messages, isOpen]);
+  }, [messages, isOpen, isLoading]);
 
   const handleSend = async (userText?: string) => {
     const textToSend = userText || input;
     if (!textToSend.trim() || isLoading) return;
 
     const userMsg: ChatbotMessage = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       sender: 'user',
       text: textToSend.trim(),
       timestamp: new Date(),
@@ -122,9 +116,9 @@ export function ChatbotWidget() {
       const res = await chatbotApi.getRecommendations(textToSend, history, userLocation);
 
       const botMsg: ChatbotMessage = {
-        id: (Date.now() + 1).toString(),
+        id: crypto.randomUUID(),
         sender: 'bot',
-        text: res.data?.reply || "Here are matching PGs from our database:",
+        text: res.data?.reply || 'Here’s what I found:',
         recommendations: res.data?.recommendations || [],
         timestamp: new Date(),
       };
@@ -134,9 +128,9 @@ export function ChatbotWidget() {
       setMessages((prev) => [
         ...prev,
         {
-          id: (Date.now() + 1).toString(),
+          id: crypto.randomUUID(),
           sender: 'bot',
-          text: "I ran into an issue connecting to the database search. Please try searching via Browse PGs!",
+          text: 'Sorry, I couldn’t search just now. Try again in a moment, or use the search bar on the page.',
           timestamp: new Date(),
         },
       ]);
@@ -145,93 +139,88 @@ export function ChatbotWidget() {
     }
   };
 
+  // Quick questions only make sense before the conversation gets going
+  const showPrompts = messages.length <= 3 && !isLoading;
+
   return (
-    <>
-      {/* Floating Action Button */}
+    <div className="font-display text-ink">
+      {/* Launcher */}
       <button
         id="chatbot-trigger-btn"
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 via-sky-500 to-indigo-600 text-white shadow-xl transition-all duration-300 hover:scale-110 hover:shadow-blue-500/30 active:scale-95 group cursor-pointer"
-        aria-label="Open AI Assistant"
+        aria-label={isOpen ? 'Close chat' : 'Ask Anei'}
+        aria-expanded={isOpen}
+        className={cn(
+          'group fixed bottom-6 right-4 z-50 flex h-14 items-center gap-2.5 rounded-full border border-black/[0.06] bg-white p-1.5 shadow-[0_18px_40px_-16px_rgba(17,17,17,0.45)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_46px_-16px_rgba(17,17,17,0.5)] active:scale-95 sm:right-6',
+          isOpen ? 'pr-1.5' : 'pr-1.5 sm:pr-5'
+        )}
       >
-        <div className="relative">
-          {isOpen ? (
-            <X className="h-6 w-6 transition-transform group-hover:rotate-90" />
-          ) : (
-            <>
-              <Sparkles className="h-6 w-6 animate-pulse" />
-              <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-300 opacity-75" />
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-400" />
-              </span>
-            </>
-          )}
-        </div>
+        {isOpen ? (
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-ink text-white">
+            <X className="h-5 w-5 transition-transform duration-300 group-hover:rotate-90" />
+          </span>
+        ) : (
+          <>
+            <AneiAvatar className="h-11 w-11 transition-transform duration-300 group-hover:-rotate-6" />
+            <span className="hidden text-sm font-medium sm:inline">Ask Anei</span>
+          </>
+        )}
       </button>
 
-      {/* Chat Window */}
+      {/* Chat window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-4 z-50 w-[92vw] max-w-[420px] rounded-3xl border border-slate-100 bg-white/95 backdrop-blur-xl shadow-2xl overflow-hidden flex flex-col h-[560px] max-h-[80vh] animate-fade-in transition-all">
+        <div
+          role="dialog"
+          aria-label="Chat with Anei"
+          className="fixed bottom-24 right-4 z-50 flex h-[560px] max-h-[calc(100dvh-8rem)] w-[calc(100vw-2rem)] max-w-[400px] origin-bottom-right animate-fade-in flex-col overflow-hidden rounded-[28px] border border-black/[0.06] bg-white shadow-[0_40px_90px_-30px_rgba(15,23,42,0.4)] sm:right-6"
+        >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-3.5 text-white">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 backdrop-blur-md text-white">
-                <Sparkles className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="font-extrabold text-base leading-tight tracking-tight">Anei AI Assistant</h3>
-                {/* Location indicator */}
-                <div className="text-[11px] text-blue-100 flex items-center gap-1 mt-0.5 font-medium">
-                  {locatingStatus === 'locating' && (
-                    <>
-                      <Loader2 className="h-3 w-3 animate-spin text-sky-200" />
-                      <span>Detecting location...</span>
-                    </>
-                  )}
-                  {locatingStatus === 'ready' && userLocation && (
-                    <>
-                      <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                      <span>{userLocation.area ? `${userLocation.area}, ` : ''}{userLocation.city || 'Near You'}</span>
-                    </>
-                  )}
-                  {locatingStatus !== 'locating' && locatingStatus !== 'ready' && (
-                    <>
-                      <Navigation className="h-3 w-3 text-sky-200" />
-                      <button onClick={detectLocation} className="underline hover:text-white">Enable GPS</button>
-                    </>
-                  )}
-                </div>
+          <div className="flex items-center gap-3 border-b border-black/[0.06] px-5 py-4">
+            <AneiAvatar className="h-10 w-10" />
+            <div className="min-w-0 flex-1">
+              <h3 className="text-[15px] font-semibold leading-tight">Anei</h3>
+              <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
+                {locatingStatus === 'locating' && <span>Finding your location…</span>}
+                {locatingStatus === 'ready' && userLocation && (
+                  <>
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    <span className="truncate">
+                      {userLocation.area ? `${userLocation.area}, ` : ''}
+                      {userLocation.city || 'Near you'}
+                    </span>
+                  </>
+                )}
+                {locatingStatus !== 'locating' && locatingStatus !== 'ready' && (
+                  <button type="button" onClick={detectLocation} className="flex items-center gap-1 hover:text-ink">
+                    <Navigation className="h-3 w-3" />
+                    <span className="underline-offset-2 hover:underline">Use my location</span>
+                  </button>
+                )}
               </div>
             </div>
             <button
+              type="button"
+              aria-label="Close chat"
               onClick={() => setIsOpen(false)}
-              className="rounded-full p-1.5 text-white/80 hover:bg-white/20 hover:text-white transition-colors"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface hover:text-ink"
             >
-              <X className="h-5 w-5" />
+              <X className="h-[18px] w-[18px]" />
             </button>
           </div>
 
-          {/* Messages Stream */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
+          {/* Messages */}
+          <div className="flex-1 space-y-4 overflow-y-auto px-4 py-5">
             {messages.map((m) => (
-              <div
-                key={m.id}
-                className={`flex gap-3 ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                {m.sender === 'bot' && (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm mt-1">
-                    <Bot className="h-4 w-4" />
-                  </div>
-                )}
+              <div key={m.id} className={cn('flex animate-fade-in gap-2.5', m.sender === 'user' ? 'justify-end' : 'justify-start')}>
+                {m.sender === 'bot' && <AneiAvatar className="mt-0.5 h-7 w-7" still />}
 
-                <div className={`max-w-[85%] space-y-2 ${m.sender === 'user' ? 'items-end' : 'items-start'}`}>
-                  {/* Text bubble */}
+                <div className={cn('max-w-[82%] space-y-2', m.sender === 'user' && 'flex flex-col items-end')}>
                   <div
-                    className={`rounded-2xl px-4 py-3 text-xs sm:text-sm leading-relaxed ${
-                      m.sender === 'user'
-                        ? 'bg-blue-600 text-white rounded-br-none shadow-md font-medium'
-                        : 'bg-white text-slate-800 border border-slate-100 rounded-bl-none shadow-sm font-medium'
-                    }`}
+                    className={cn(
+                      'rounded-[20px] px-4 py-2.5 text-[13.5px] leading-relaxed',
+                      m.sender === 'user' ? 'rounded-br-md bg-ink text-white' : 'rounded-bl-md bg-surface'
+                    )}
                   >
                     {m.text.split('\n').map((line, i) => (
                       <p key={i} className={i > 0 ? 'mt-1' : ''}>
@@ -240,86 +229,66 @@ export function ChatbotWidget() {
                     ))}
                   </div>
 
-                  {/* Inline Recommended PG Cards */}
+                  {/* Places Anei found */}
                   {m.recommendations && m.recommendations.length > 0 && (
-                    <div className="mt-3 space-y-2.5">
-                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider pl-1">
-                        Database Listings ({m.recommendations.length})
-                      </p>
+                    <div className="space-y-2 pt-1">
                       {m.recommendations.map((pg: PGListing) => (
-                        <div
+                        <button
                           key={pg._id}
-                          className="rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-sm hover:shadow-md transition-all group"
+                          type="button"
+                          onClick={() => {
+                            setIsOpen(false);
+                            navigate(`/pg/${pg._id}`);
+                          }}
+                          className="group flex w-full items-center gap-3 rounded-2xl border border-black/[0.06] bg-white p-2 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-18px_rgba(17,17,17,0.4)]"
                         >
-                          <div className="flex gap-3 items-center">
-                            <div className="h-16 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-100 relative">
-                              {pg.images?.[0] ? (
-                                <img
-                                  src={pg.images[0].url}
-                                  alt={pg.title}
-                                  className="h-full w-full object-cover group-hover:scale-105 transition-transform"
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center text-slate-300">
-                                  <BedDouble className="h-6 w-6" />
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-bold text-slate-900 text-xs truncate group-hover:text-blue-600 transition-colors">
-                                {pg.title}
-                              </h4>
-                              <p className="text-[11px] text-slate-500 truncate flex items-center gap-1 mt-0.5">
-                                <MapPin className="h-3 w-3 shrink-0 text-slate-400" />
-                                {pg.location.address}, {pg.location.city}
-                              </p>
-                              <div className="mt-1 flex items-center justify-between">
-                                <span className="font-extrabold text-blue-600 text-xs">
-                                  {formatCurrency(pg.rent)}/mo
-                                </span>
-                                {pg.ratingAverage ? (
-                                  <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">
-                                    <Star className="h-2.5 w-2.5 fill-current text-amber-400" />
-                                    {pg.ratingAverage}
-                                  </span>
-                                ) : null}
+                          <div className="h-14 w-16 shrink-0 overflow-hidden rounded-xl bg-surface">
+                            {pg.images?.[0] ? (
+                              <img
+                                src={pg.images[0].url}
+                                alt=""
+                                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-muted">
+                                <BedDouble className="h-5 w-5" />
                               </div>
-                            </div>
+                            )}
                           </div>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsOpen(false);
-                              navigate(`/pg/${pg._id}`);
-                            }}
-                            className="mt-2.5 flex w-full items-center justify-center gap-1 rounded-xl bg-slate-50 border border-slate-200 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-blue-600 hover:text-white hover:border-blue-600"
-                          >
-                            View Details <ExternalLink className="h-3 w-3" />
-                          </button>
-                        </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[13px] font-semibold">{pg.title}</p>
+                            <p className="mt-0.5 flex items-center gap-1 truncate text-[11.5px] text-muted">
+                              <MapPin className="h-3 w-3 shrink-0" />
+                              <span className="truncate">
+                                {pg.location.address}, {pg.location.city}
+                              </span>
+                            </p>
+                            <p className="mt-1 flex items-center gap-2 text-xs">
+                              <span className="font-semibold text-accent">{formatCurrency(pg.rent)}/mo</span>
+                              {pg.ratingAverage ? (
+                                <span className="flex items-center gap-0.5">
+                                  <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                                  {pg.ratingAverage.toFixed(1)}
+                                </span>
+                              ) : null}
+                            </p>
+                          </div>
+                          <ChevronRight className="h-4 w-4 shrink-0 text-muted transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-ink" />
+                        </button>
                       ))}
                     </div>
                   )}
                 </div>
-
-                {m.sender === 'user' && (
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-200 text-slate-600 shadow-sm mt-1">
-                    <UserIcon className="h-4 w-4" />
-                  </div>
-                )}
               </div>
             ))}
 
             {isLoading && (
-              <div className="flex items-center gap-3 text-slate-400 text-xs">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 text-white">
-                  <Bot className="h-4 w-4" />
-                </div>
-                <div className="flex items-center gap-2 rounded-2xl bg-white border border-slate-100 px-4 py-3 shadow-sm">
-                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                  <span>Fetching matching PGs from database...</span>
+              <div className="flex animate-fade-in items-center gap-2.5">
+                <AneiAvatar className="h-7 w-7" still />
+                <div className="flex items-center gap-1 rounded-[20px] rounded-bl-md bg-surface px-4 py-3.5" aria-label="Anei is looking">
+                  {[0, 1, 2].map((i) => (
+                    <span key={i} className="typing-dot h-1.5 w-1.5 rounded-full bg-ink" style={{ animationDelay: `${i * 150}ms` }} />
+                  ))}
                 </div>
               </div>
             )}
@@ -327,47 +296,52 @@ export function ChatbotWidget() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Quick Prompts Chips */}
-          <div className="bg-slate-50 border-t border-slate-100 px-3 py-2.5 flex gap-1.5 overflow-x-auto scrollbar-hide">
-            {SUGGESTED_PROMPTS.map((prompt, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => handleSend(prompt)}
-                className="shrink-0 rounded-full border border-blue-200/80 bg-blue-50/90 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
+          {/* Quick questions */}
+          {showPrompts && (
+            <div className="scrollbar-hide flex gap-2 overflow-x-auto px-4 pb-3">
+              {SUGGESTED_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => handleSend(prompt)}
+                  className="shrink-0 rounded-full border border-black/[0.08] bg-white px-3.5 py-2 text-[12.5px] font-medium transition-all hover:border-ink hover:bg-ink hover:text-white active:scale-95"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          )}
 
-          {/* Input Bar */}
+          {/* Input */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
               handleSend();
             }}
-            className="border-t border-slate-100 bg-white p-3 flex items-center gap-2"
+            className="border-t border-black/[0.06] p-3"
           >
-            <input
-              id="chatbot-input"
-              type="text"
-              placeholder="Ask e.g. 'Find PGs near me with WiFi'..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              disabled={isLoading}
-              className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs sm:text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-blue-500/60 focus:ring-4 focus:ring-blue-500/10 transition-all"
-            />
-            <button
-              type="submit"
-              disabled={!input.trim() || isLoading}
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md transition-all hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Send className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-2 rounded-2xl bg-surface p-1.5 pl-4 transition-all focus-within:bg-white focus-within:ring-4 focus-within:ring-black/[0.04] focus-within:[box-shadow:inset_0_0_0_1px_rgba(0,0,0,0.1)]">
+              <input
+                id="chatbot-input"
+                type="text"
+                placeholder="e.g. PG under 6000 with WiFi"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                disabled={isLoading}
+                className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-muted/80"
+              />
+              <button
+                type="submit"
+                aria-label="Send"
+                disabled={!input.trim() || isLoading}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-ink text-white transition-all hover:bg-black/85 active:scale-90 disabled:opacity-30"
+              >
+                <ArrowUp className="h-4 w-4" />
+              </button>
+            </div>
           </form>
         </div>
       )}
-    </>
+    </div>
   );
 }

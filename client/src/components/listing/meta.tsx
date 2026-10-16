@@ -4,8 +4,9 @@ import {
   Cctv,
   Droplets,
   Dumbbell,
+  CircleCheck,
   ShieldCheck,
-  Sparkles,
+  SprayCan,
   Trees,
   Tv,
   Utensils,
@@ -22,7 +23,7 @@ export const AMENITIES: { value: string; label: string; icon: LucideIcon }[] = [
   { value: 'ac', label: 'AC', icon: AirVent },
   { value: 'meals', label: 'Meals', icon: Utensils },
   { value: 'laundry', label: 'Laundry', icon: WashingMachine },
-  { value: 'housekeeping', label: 'Housekeeping', icon: Sparkles },
+  { value: 'housekeeping', label: 'Housekeeping', icon: SprayCan },
   { value: 'power-backup', label: 'Power backup', icon: Zap },
   { value: 'water_purifier', label: 'Water purifier', icon: Droplets },
   { value: 'security', label: 'Security', icon: ShieldCheck },
@@ -34,7 +35,7 @@ export const AMENITIES: { value: string; label: string; icon: LucideIcon }[] = [
 ];
 
 export const amenityMeta = (value: string) =>
-  AMENITIES.find((a) => a.value === value) ?? { value, label: value, icon: Sparkles };
+  AMENITIES.find((a) => a.value === value) ?? { value, label: value, icon: CircleCheck };
 
 export const ROOM_TYPES = [
   { value: 'single', label: 'Single' },

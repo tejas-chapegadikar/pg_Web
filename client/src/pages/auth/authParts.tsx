@@ -18,10 +18,10 @@ export function RolePicker({ label, value, onChange }: { label: string; value: R
               id={`role-${r}`}
               onClick={() => onChange(r)}
               className={cn(
-                'relative flex flex-col items-start gap-2.5 rounded-[22px] border bg-white p-4 text-left transition-all duration-200',
+                'relative flex flex-col items-start gap-2.5 rounded-[22px] border bg-white p-4 text-left transition-all duration-200 active:scale-[0.98]',
                 selected
                   ? 'border-ink shadow-[0_14px_30px_-16px_rgba(17,17,17,0.45)]'
-                  : 'border-black/[0.07] hover:border-black/20'
+                  : 'border-black/[0.07] hover:-translate-y-0.5 hover:border-black/20 hover:shadow-[0_14px_30px_-20px_rgba(17,17,17,0.35)]'
               )}
             >
               <span
