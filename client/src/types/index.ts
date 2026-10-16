@@ -131,23 +131,6 @@ export interface CreateReviewPayload {
   comment: string;
 }
 
-// Chatbot Types
-export interface ChatbotMessage {
-  id: string;
-  sender: 'user' | 'bot';
-  text: string;
-  recommendations?: PGListing[];
-  timestamp: Date;
-}
-
-export interface ChatbotResponse {
-  status: string;
-  data: {
-    reply: string;
-    recommendations: PGListing[];
-  };
-}
-
 export interface PGListingsResponse {
   status: string;
   results: number;

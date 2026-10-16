@@ -6,7 +6,6 @@ import { useAuthStore } from '@/stores/authStore';
 import { useLogout } from '@/hooks/useAuth';
 import { cn, getInitials } from '@/lib/utils';
 import { buttonClasses } from '@/components/ds/styles';
-import { ChatbotWidget } from '@/components/chatbot/ChatbotWidget';
 import logo from '@/assets/logo-dark.png';
 import logoMark from '@/assets/logo-mark.svg';
 
@@ -24,11 +23,9 @@ export function MainLayout() {
       <footer className="border-t border-black/[0.06]">
         <div className={cn('flex flex-wrap items-center justify-between gap-3 py-6 text-[13px] text-muted', GUTTER)}>
           <img src={logo} alt="Anei Ghar" className="h-7 w-auto opacity-80" />
-          {/* Room on the right for the floating chat button */}
-          <p className="mr-16 sm:mr-40">© {new Date().getFullYear()} Anei Ghar · PGs and flats for students</p>
+          <p>© {new Date().getFullYear()} Anei Ghar · PGs and flats for students</p>
         </div>
       </footer>
-      <ChatbotWidget />
     </div>
   );
 }
