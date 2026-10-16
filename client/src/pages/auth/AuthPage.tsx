@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, BadgeCheck, BedDouble, KeyRound, MapPin, ShieldCheck, Sofa, Wifi } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BadgeCheck, MapPin, ShieldCheck } from 'lucide-react';
 import { authApi } from '@/api/auth';
 import { homeFor, RoleMismatchError, useAuthenticate } from '@/hooks/useAuth';
 import { firebaseErrorMessage, getGoogleIdToken, isFirebaseConfigured } from '@/lib/firebase';
@@ -57,13 +57,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
   const isLogin = mode === 'login';
   const busy = googleOpening || google.isPending;
 
-  // Mouse position feeds CSS variables (no re-render): the floating tiles drift, the card's light follows
-  const pageRef = useRef<HTMLDivElement>(null);
-  const onPagePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType !== 'mouse' || !pageRef.current) return;
-    pageRef.current.style.setProperty('--mx', String(e.clientX / window.innerWidth - 0.5));
-    pageRef.current.style.setProperty('--my', String(e.clientY / window.innerHeight - 0.5));
-  };
+  // Mouse position feeds CSS variables (no re-render) so the card's light follows it
   const onCardPointerMove = (e: React.PointerEvent<HTMLElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     e.currentTarget.style.setProperty('--sx', `${e.clientX - rect.left}px`);
@@ -72,8 +66,6 @@ export function AuthPage({ mode }: { mode: Mode }) {
 
   return (
     <div
-      ref={pageRef}
-      onPointerMove={onPagePointerMove}
       className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-white px-4 py-6 font-display text-ink sm:bg-backdrop sm:px-6 short:py-4"
     >
       {/* Dotted backdrop that fades out toward the edges */}
@@ -90,24 +82,6 @@ export function AuthPage({ mode }: { mode: Mode }) {
       {/* Soft background glow so the card doesn't float on a flat gray */}
       <div aria-hidden className="animate-drift pointer-events-none absolute -left-40 -top-40 hidden h-[480px] w-[480px] rounded-full bg-accent/15 blur-3xl sm:block" />
       <div aria-hidden className="animate-drift pointer-events-none absolute -bottom-48 -right-32 hidden h-[520px] w-[520px] rounded-full bg-ink/[0.07] blur-3xl [animation-delay:-6s] sm:block" />
-
-      {/* Little icon tiles floating around the card (big screens), drifting a touch with the mouse */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 hidden xl:block">
-        {FLOATERS.map(({ icon: Icon, className, depth, tilt, delay }) => (
-          <div
-            key={className}
-            className={cn('absolute transition-transform duration-700 ease-out', className)}
-            style={{ transform: `translate3d(calc(var(--mx, 0) * ${depth}px), calc(var(--my, 0) * ${depth}px), 0)` }}
-          >
-            <div
-              className="animate-float flex h-14 w-14 items-center justify-center rounded-2xl border border-black/[0.05] bg-white shadow-[0_20px_40px_-20px_rgba(15,23,42,0.35)]"
-              style={{ '--r': `${tilt}deg`, animationDelay: `${delay}s` } as React.CSSProperties}
-            >
-              <Icon className="h-6 w-6 text-ink" strokeWidth={1.75} />
-            </div>
-          </div>
-        ))}
-      </div>
 
       <Link
         to="/welcome"
@@ -232,10 +206,6 @@ export function AuthPage({ mode }: { mode: Mode }) {
           ))}
         </div>
       </main>
-
-      <p className="relative mt-5 max-w-[460px] text-center text-xs leading-relaxed text-muted compact:mt-3">
-        We only use your name, email and profile photo from Google.
-      </p>
     </div>
   );
 }
@@ -244,14 +214,6 @@ const TRUST = [
   { icon: BadgeCheck, label: 'Verified listings' },
   { icon: ShieldCheck, label: 'Secure Google sign-in' },
   { icon: MapPin, label: 'Growing across India' },
-];
-
-/** Decorative tiles around the card: where they sit, how far they drift with the mouse, their tilt and float timing */
-const FLOATERS = [
-  { icon: BedDouble, className: 'left-[calc(50%-430px)] top-[18%]', depth: 30, tilt: -8, delay: 0 },
-  { icon: Wifi, className: 'left-[calc(50%-370px)] bottom-[20%]', depth: 18, tilt: 6, delay: -2 },
-  { icon: KeyRound, className: 'right-[calc(50%-430px)] top-[24%]', depth: 26, tilt: 8, delay: -1 },
-  { icon: Sofa, className: 'right-[calc(50%-380px)] bottom-[16%]', depth: 22, tilt: -6, delay: -3 },
 ];
 
 /** Google's multicolour "G" (as required by Google's sign-in branding guidelines) */

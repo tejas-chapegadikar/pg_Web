@@ -150,16 +150,6 @@
   animation-delay: calc(var(--i, 0) * 80ms + 120ms);
 }
 
-/* Gentle bob for decorative tiles; --r keeps each tile's own tilt */
-@keyframes float {
-  0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
-  50% { transform: translateY(-12px) rotate(var(--r, 0deg)); }
-}
-.animate-float {
-  transform: rotate(var(--r, 0deg));
-  animation: float 6s ease-in-out infinite;
-}
-
 /* Very slow wander for background glows */
 @keyframes drift {
   0%, 100% { transform: translate(0, 0) scale(1); }
@@ -232,7 +222,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .stagger > *:not([aria-hidden]),
-  .animate-float,
   .animate-drift,
   .animate-kenburns,
   .animate-pop,
