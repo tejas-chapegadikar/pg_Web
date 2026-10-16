@@ -9,6 +9,7 @@ import { GoogleMapsProvider } from '@/components/maps/GoogleMapsProvider';
 
 // Pages
 import { AuthPage } from '@/pages/auth/AuthPage';
+import { WelcomePage } from '@/pages/auth/WelcomePage';
 import { ResetPasswordPage } from '@/pages/auth/ResetPasswordPage';
 import { PGListPage } from '@/pages/pg/PGListPage';
 import { PGDetailsPage } from '@/pages/pg/PGDetailsPage';
@@ -51,6 +52,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           {/* Auth — the only pages open without signing in; login is the site's front door */}
+          <Route path="/welcome" element={<WelcomePage />} />
           <Route path="/login" element={<AuthPage mode="login" />} />
           <Route path="/register" element={<AuthPage mode="register" />} />
           {/* Phone OTP now lives on the login page */}

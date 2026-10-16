@@ -26,7 +26,7 @@ export function ProtectedRoute({ role }: ProtectedRouteProps) {
   }, [isAuthenticated, isRoleMismatch, role, addToast]);
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location }} />;
+    return <Navigate to="/welcome" replace state={{ from: location }} />;
   }
 
   if (isRoleMismatch && user) {
