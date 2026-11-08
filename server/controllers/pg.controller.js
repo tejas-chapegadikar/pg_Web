@@ -8,7 +8,7 @@ exports.getAllPGs = catchAsync(async (req, res) => {
 });
 
 exports.getPGById = catchAsync(async (req, res) => {
-  const pg = await pgService.getPGById(req.params.id);
+  const pg = await pgService.getPGById(req.params.id, req.user?._id);
   res.status(200).json({ status: 'success', data: { pg } });
 });
 
@@ -32,7 +32,10 @@ exports.uploadImages = catchAsync(async (req, res) => {
     return res.status(400).json({ status: 'fail', message: 'No images uploaded.' });
   }
 
-  // Cloudinary when configured, otherwise local disk (development only)
+  // Check first, so photos sent to someone else's listing are never stored
+  await pgService.assertOwner(req.params.id, req.user._id);
+
+  // Cloudinary when configured, otherwise MongoDB
   const uploadedImages = await Promise.all(req.files.map((file) => storeImage(file)));
 
   const pg = await pgService.addImages(req.params.id, req.user._id, uploadedImages);

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pgController = require('../controllers/pg.controller');
-const { protect, restrictTo } = require('../middleware/auth');
+const { protect, optionalAuth, restrictTo } = require('../middleware/auth');
 const { upload, handleUploadErrors } = require('../middleware/upload');
 
 const reviewRoutes = require('./review.routes');
@@ -16,7 +16,7 @@ router.get('/', pgController.getAllPGs);
 router.get('/owner/my-listings', protect, restrictTo('owner'), pgController.getOwnerPGs);
 
 // Public single listing route
-router.get('/:id', pgController.getPGById);
+router.get('/:id', optionalAuth, pgController.getPGById);
 
 // Owner-only mutation routes
 router.post('/', protect, restrictTo('owner'), pgController.createPG);

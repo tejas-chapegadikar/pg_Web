@@ -12,12 +12,17 @@ const ROLES = ['student', 'owner'];
 const PURPOSES = ['login', 'signup'];
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
 
+const MAX_SESSIONS = 5; // signed-in devices per account; the oldest is dropped
+
 /** Start a session: new access + refresh token, refresh token stored for rotation */
 const issueTokens = async (user) => {
   const accessToken = generateAccessToken(user._id);
   const refreshToken = generateRefreshToken(user._id);
-  user.refreshToken = refreshToken;
-  await user.save({ validateBeforeSave: false });
+  if (user.isModified()) await user.save({ validateBeforeSave: false });
+  await User.updateOne(
+    { _id: user._id },
+    { $push: { refreshTokens: { $each: [refreshToken], $slice: -MAX_SESSIONS } } }
+  );
   return { user, accessToken, refreshToken };
 };
 
@@ -134,6 +139,9 @@ exports.register = async ({ name, email: rawEmail, password, role, phone, code }
  * Login an existing user (email/password)
  */
 exports.login = async ({ email, password }) => {
+  if (typeof email !== 'string' || typeof password !== 'string') {
+    throw new AppError('Enter your email and password.', 400);
+  }
   const user = await User.findOne({ email }).select('+password');
   // Accounts made with Google have no password (bcrypt would throw)
   if (user && !user.password) {
@@ -143,13 +151,7 @@ exports.login = async ({ email, password }) => {
     throw new AppError('Invalid email or password.', 401);
   }
 
-  const accessToken = generateAccessToken(user._id);
-  const refreshToken = generateRefreshToken(user._id);
-
-  user.refreshToken = refreshToken;
-  await user.save({ validateBeforeSave: false });
-
-  return { user, accessToken, refreshToken };
+  return issueTokens(user);
 };
 
 /**
@@ -252,7 +254,7 @@ exports.updateProfile = async (userId, { name, role, phone }) => {
   }
 
   const user = await User.findByIdAndUpdate(userId, updateData, {
-    new: true,
+    returnDocument: 'after',
     runValidators: true,
   });
 
@@ -267,26 +269,40 @@ exports.refreshToken = async (token) => {
   if (!token) throw new AppError('No refresh token provided.', 401);
 
   const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-  const user = await User.findById(decoded.id).select('+refreshToken');
+  const newRefreshToken = generateRefreshToken(decoded.id);
 
-  if (!user || user.refreshToken !== token) {
-    throw new AppError('Invalid or expired refresh token.', 401);
+  // Swap in one step, so the same old token can't be spent twice
+  let swap = await User.updateOne(
+    { _id: decoded.id, refreshTokens: token },
+    { $set: { 'refreshTokens.$': newRefreshToken } }
+  );
+  if (!swap.modifiedCount) {
+    swap = await User.updateOne(
+      { _id: decoded.id, refreshToken: token },
+      { $unset: { refreshToken: 1 }, $push: { refreshTokens: newRefreshToken } }
+    );
   }
 
-  const newAccessToken = generateAccessToken(user._id);
-  const newRefreshToken = generateRefreshToken(user._id);
+  const user = swap.modifiedCount ? await User.findById(decoded.id) : null;
+  if (!user) throw new AppError('Invalid or expired refresh token.', 401);
 
-  user.refreshToken = newRefreshToken;
-  await user.save({ validateBeforeSave: false });
-
-  return { user, accessToken: newAccessToken, refreshToken: newRefreshToken };
+  return { user, accessToken: generateAccessToken(user._id), refreshToken: newRefreshToken };
 };
 
 /**
- * Logout — clear refresh token
+ * Logout — end this device's session. Works from the cookie alone, so an expired
+ * access token can't leave the session open.
  */
-exports.logout = async (userId) => {
-  await User.findByIdAndUpdate(userId, { refreshToken: '' });
+exports.logout = async (token) => {
+  if (!token) return;
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET, { ignoreExpiration: true });
+  } catch {
+    return; // not one of ours, nothing to end
+  }
+  await User.updateOne({ _id: decoded.id }, { $pull: { refreshTokens: token } });
+  await User.updateOne({ _id: decoded.id, refreshToken: token }, { $unset: { refreshToken: 1 } });
 };
 
 /**
@@ -294,7 +310,7 @@ exports.logout = async (userId) => {
  */
 exports.forgotPassword = async (email) => {
   const crypto = require('crypto');
-  if (!email) throw new AppError('Please provide an email address.', 400);
+  if (!email || typeof email !== 'string') throw new AppError('Please provide an email address.', 400);
 
   const user = await User.findOne({ email });
   if (!user) {
@@ -349,6 +365,9 @@ exports.resetPassword = async (token, password) => {
   user.password = password;
   user.passwordResetToken = undefined;
   user.passwordResetExpires = undefined;
+  // Whoever had the old password shouldn't stay signed in
+  user.refreshTokens = [];
+  user.refreshToken = undefined;
 
   await user.save(); // will trigger pre('save') hash
   return user;

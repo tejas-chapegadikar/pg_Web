@@ -25,7 +25,7 @@ export function Badge({ className, variant = 'default', ...props }: BadgeProps) 
 }
 
 // Skeleton loader
-interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {}
+type SkeletonProps = React.HTMLAttributes<HTMLDivElement>;
 
 export function Skeleton({ className, ...props }: SkeletonProps) {
   return (

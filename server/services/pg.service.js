@@ -16,18 +16,30 @@ const haversineKm = (lat1, lng1, lat2, lng2) => {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
+// Brokers set these. Ratings, view counts, the owner and photos are managed by the server.
+const EDITABLE_FIELDS = [
+  'propertyType', 'title', 'description', 'location', 'rent', 'deposit', 'genderPreference',
+  'roomType', 'bhk', 'amenities', 'totalRooms', 'availableRooms', 'isAvailable', 'rules',
+  'rentIncludes', 'additionalCharges',
+];
+const pickEditable = (data = {}) =>
+  Object.fromEntries(EDITABLE_FIELDS.filter((key) => key in data).map((key) => [key, data[key]]));
+
+const escapeRegex = (text) => String(text).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /**
  * Build a MongoDB filter object from query params.
  * Note: lat/lng/radius are handled separately in getAllPGs via bounding box +
  * Haversine post-filter, not inside this function.
  */
 const buildFilter = (query) => {
-  const filter = {};
+  // Set here as well as in the model's find hook, which countDocuments doesn't run
+  const filter = { isDeleted: { $ne: true } };
 
-  if (query.city) filter['location.city'] = { $regex: query.city, $options: 'i' };
+  if (query.city) filter['location.city'] = { $regex: escapeRegex(query.city), $options: 'i' };
   // Free-text search over name, address and city (escaped — user input is not a regex)
   if (query.q && String(query.q).trim()) {
-    const pattern = { $regex: String(query.q).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+    const pattern = { $regex: escapeRegex(query.q), $options: 'i' };
     filter.$or = [{ title: pattern }, { 'location.address': pattern }, { 'location.city': pattern }];
   }
   // Listings created before flats existed have no propertyType — they're PGs
@@ -114,7 +126,7 @@ exports.getAllPGs = async (query) => {
     // Step 2: Fetch bounding-box candidates (no pagination yet)
     const candidates = await PGListing.find(filter)
       .sort(sort)
-      .populate('owner', 'name email phone avatar')
+      .populate('owner', 'name avatar')
       .lean();
 
     // Step 3: Exact Haversine post-filter
@@ -148,7 +160,7 @@ exports.getAllPGs = async (query) => {
       .sort(sort)
       .skip(skip)
       .limit(limit)
-      .populate('owner', 'name email phone avatar')
+      .populate('owner', 'name avatar')
       .lean(),
     PGListing.countDocuments(filter),
   ]);
@@ -167,16 +179,17 @@ exports.getAllPGs = async (query) => {
 };
 
 /**
- * Get a single PG by ID and increment view count
+ * Get a single PG by ID and count the view (a broker opening their own listing isn't one).
+ * The broker's phone number is only for signed-in users.
  */
-exports.getPGById = async (id) => {
-  const pg = await PGListing.findByIdAndUpdate(
-    id,
-    { $inc: { 'analytics.views': 1 } },
-    { new: true }
-  ).populate('owner', 'name email phone avatar');
-
+exports.getPGById = async (id, viewerId) => {
+  const pg = await PGListing.findById(id).populate('owner', viewerId ? 'name phone avatar' : 'name avatar');
   if (!pg) throw new AppError('PG listing not found.', 404);
+
+  if (String(pg.owner?._id) !== String(viewerId)) {
+    await PGListing.updateOne({ _id: id }, { $inc: { 'analytics.views': 1 } }, { timestamps: false });
+    pg.analytics.views += 1;
+  }
   return pg;
 };
 
@@ -184,7 +197,7 @@ exports.getPGById = async (id) => {
  * Create a new PG listing
  */
 exports.createPG = async (ownerId, data) => {
-  const pg = await PGListing.create({ ...data, owner: ownerId });
+  const pg = await PGListing.create({ ...pickEditable(data), owner: ownerId });
   return pg;
 };
 
@@ -195,7 +208,7 @@ exports.updatePG = async (id, ownerId, data) => {
   const pg = await PGListing.findOne({ _id: id, owner: ownerId });
   if (!pg) throw new AppError('PG not found or you are not authorized to update it.', 404);
 
-  Object.assign(pg, data);
+  Object.assign(pg, pickEditable(data));
   await pg.save();
   return pg;
 };
@@ -207,10 +220,17 @@ exports.deletePG = async (id, ownerId) => {
   const pg = await PGListing.findOneAndUpdate(
     { _id: id, owner: ownerId },
     { isDeleted: true },
-    { new: true }
+    { returnDocument: 'after' }
   );
   if (!pg) throw new AppError('PG not found or you are not authorized to delete it.', 404);
   return pg;
+};
+
+/** Throws unless this listing exists and belongs to this broker */
+exports.assertOwner = async (id, ownerId) => {
+  if (!(await PGListing.exists({ _id: id, owner: ownerId, isDeleted: { $ne: true } }))) {
+    throw new AppError('PG not found or not authorized.', 404);
+  }
 };
 
 /**

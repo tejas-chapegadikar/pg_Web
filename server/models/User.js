@@ -50,8 +50,14 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    // Only on accounts last signed in before multi-device sessions; moved to refreshTokens on next refresh
     refreshToken: {
       type: String,
+      select: false,
+    },
+    // One per signed-in device
+    refreshTokens: {
+      type: [String],
       select: false,
     },
     isOnboarded: {
@@ -96,6 +102,9 @@ userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
   delete obj.refreshToken;
+  delete obj.refreshTokens;
+  delete obj.passwordResetToken;
+  delete obj.passwordResetExpires;
   delete obj.__v;
   return obj;
 };

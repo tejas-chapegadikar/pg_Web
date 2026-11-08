@@ -100,7 +100,7 @@ exports.refreshToken = catchAsync(async (req, res) => {
 });
 
 exports.logout = catchAsync(async (req, res) => {
-  await authService.logout(req.user._id);
+  await authService.logout(req.cookies.refreshToken);
   res.clearCookie('refreshToken');
   res.status(200).json({ status: 'success', message: 'Logged out successfully.' });
 });

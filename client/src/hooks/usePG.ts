@@ -41,6 +41,7 @@ export function useCreatePG() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: pgKeys.lists() });
       qc.invalidateQueries({ queryKey: pgKeys.myListings() });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }
@@ -65,6 +66,7 @@ export function useDeletePG() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: pgKeys.lists() });
       qc.invalidateQueries({ queryKey: pgKeys.myListings() });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }

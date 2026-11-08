@@ -18,27 +18,50 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// A page often fires several requests at once. They must share one refresh: each refresh
+// replaces the cookie's token, so a second one sent alongside it would be rejected.
+let refreshing: Promise<string> | null = null;
+
+const refreshAccessToken = () => {
+  refreshing ??= axios
+    .post('/api/auth/refresh', {}, { withCredentials: true })
+    .then((res) => {
+      const { accessToken } = res.data.data;
+      useAuthStore.getState().setToken(accessToken);
+      return accessToken as string;
+    })
+    .finally(() => {
+      refreshing = null;
+    });
+  return refreshing;
+};
+
 // Response interceptor — handle 401, try token refresh
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    const isAuthRoute = originalRequest?.url?.startsWith('/auth/');
+    const url: string | undefined = originalRequest?.url;
+    const isAuthRoute = url?.startsWith('/auth/') && !url.startsWith('/auth/me');
 
-    // Never intercept auth routes (login, refresh, logout) — let them fail naturally
+    // Never intercept login, refresh or logout — let them fail naturally
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute) {
       originalRequest._retry = true;
 
+      let accessToken: string;
       try {
-        const res = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
-        const { accessToken } = res.data.data;
-        useAuthStore.getState().setToken(accessToken);
-        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-        return apiClient(originalRequest);
-      } catch {
-        useAuthStore.getState().logout();
-        window.location.href = '/login';
+        accessToken = await refreshAccessToken();
+      } catch (refreshError) {
+        // Only a rejected session ends it; a network blip or busy server shouldn't sign anyone out
+        if ((refreshError as { response?: { status?: number } }).response?.status === 401) {
+          useAuthStore.getState().logout();
+          window.location.href = '/login';
+        }
+        return Promise.reject(error);
       }
+
+      originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+      return apiClient(originalRequest);
     }
 
     return Promise.reject(error);

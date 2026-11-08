@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
 /**
@@ -14,6 +15,7 @@ const generateAccessToken = (userId) =>
 const generateRefreshToken = (userId) =>
   jwt.sign({ id: userId }, process.env.JWT_REFRESH_SECRET, {
     expiresIn: process.env.JWT_REFRESH_EXPIRE || '7d',
+    jwtid: crypto.randomUUID(), // two sessions started in the same second must still differ
   });
 
 /**

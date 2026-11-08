@@ -28,6 +28,15 @@ exports.protect = catchAsync(async (req, res, next) => {
 });
 
 /**
+ * For pages open to everyone that show more to signed-in users. No token: carry on
+ * as a visitor. A bad or expired token still gets a 401, so the client can refresh it.
+ */
+exports.optionalAuth = (req, res, next) => {
+  if (!req.headers.authorization) return next();
+  return exports.protect(req, res, next);
+};
+
+/**
  * Restrict access to specific roles
  */
 exports.restrictTo = (...roles) =>

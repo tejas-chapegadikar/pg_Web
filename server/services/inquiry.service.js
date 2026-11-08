@@ -22,7 +22,7 @@ exports.createInquiry = async (studentId, { pgId, message, phone, visitDate }) =
   // Increment inquiry analytics
   await PGListing.findByIdAndUpdate(pgId, { $inc: { 'analytics.inquiries': 1 } });
 
-  // Send inquiry notification to owner in the background
+  // Tell the broker by email; the request still goes through if this fails
   try {
     const [ownerUser, studentUser] = await Promise.all([
       User.findById(pg.owner),
@@ -31,7 +31,8 @@ exports.createInquiry = async (studentId, { pgId, message, phone, visitDate }) =
 
     if (ownerUser && ownerUser.email) {
       const emailService = require('./email.service');
-      emailService.sendInquiryNotification({
+      // Awaited: on Vercel the function is frozen once the response goes out, losing unsent emails
+      await emailService.sendInquiryNotification({
         ownerEmail: ownerUser.email,
         ownerName: ownerUser.name,
         studentName: studentUser ? studentUser.name : 'A student',
@@ -89,7 +90,7 @@ exports.updateInquiryStatus = async (inquiryId, ownerId, status) => {
   const inquiry = await Inquiry.findOneAndUpdate(
     { _id: inquiryId, owner: ownerId },
     { status },
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   );
   if (!inquiry) throw new AppError('Inquiry not found or not authorized.', 404);
   return inquiry;

@@ -4,8 +4,8 @@ import './index.css'
 import App from './App.tsx'
 import Maintenance from './pages/Maintenance.tsx'
 
-// Set to false to bring the site back
-const MAINTENANCE = true
+// On for the live site only, so the real app still runs on localhost. Set to false to bring the site back.
+const MAINTENANCE = import.meta.env.PROD
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

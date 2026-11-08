@@ -33,7 +33,7 @@ const skipInTests = () => process.env.NODE_ENV === 'test';
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200,
+  max: 1000, // per IP, and a whole hostel or college can share one IP
   skip: skipInTests,
   standardHeaders: true,
   legacyHeaders: false,
@@ -74,7 +74,13 @@ app.get('/api/health', (req, res) => {
 });
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
-app.use('/api/auth', authLimiter, authRoutes);
+// Strict limit only where passwords can be guessed or emails triggered. Not on /refresh,
+// which every active student calls, or Google sign-in, which needs a token from Google.
+app.use(
+  ['/api/auth/login', '/api/auth/register', '/api/auth/otp/send', '/api/auth/forgot-password', '/api/auth/reset-password'],
+  authLimiter
+);
+app.use('/api/auth', authRoutes);
 app.use('/api/pg', pgRoutes);
 app.use('/api/inquiries', inquiryRoutes);
 app.use('/api/saves', savesRoutes);

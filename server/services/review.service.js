@@ -1,19 +1,16 @@
 const Review = require('../models/Review');
 const PGListing = require('../models/PGListing');
+const AppError = require('../utils/AppError');
 
 exports.addOrUpdateReview = async (pgId, userId, { rating, comment }) => {
   const pg = await PGListing.findById(pgId);
-  if (!pg) {
-    const err = new Error('PG listing not found');
-    err.statusCode = 404;
-    throw err;
-  }
+  if (!pg) throw new AppError('PG listing not found', 404);
 
   // Upsert review
   const review = await Review.findOneAndUpdate(
     { pg: pgId, user: userId },
     { rating, comment },
-    { new: true, upsert: true, runValidators: true }
+    { returnDocument: 'after', upsert: true, runValidators: true }
   ).populate('user', 'name avatar');
 
   // Trigger recalculation on model
@@ -23,8 +20,8 @@ exports.addOrUpdateReview = async (pgId, userId, { rating, comment }) => {
 };
 
 exports.getPGReviews = async (pgId, query) => {
-  const page = parseInt(query.page, 10) || 1;
-  const limit = parseInt(query.limit, 10) || 10;
+  const page = Math.max(1, parseInt(query.page, 10) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(query.limit, 10) || 10));
   const skip = (page - 1) * limit;
 
   const reviews = await Review.find({ pg: pgId })
@@ -55,17 +52,11 @@ exports.getPGReviews = async (pgId, query) => {
 
 exports.deleteReview = async (reviewId, userId) => {
   const review = await Review.findById(reviewId);
-  if (!review) {
-    const err = new Error('Review not found');
-    err.statusCode = 404;
-    throw err;
-  }
+  if (!review) throw new AppError('Review not found', 404);
 
   // Check ownership
   if (review.user.toString() !== userId.toString()) {
-    const err = new Error('Not authorized to delete this review');
-    err.statusCode = 403;
-    throw err;
+    throw new AppError('Not authorized to delete this review', 403);
   }
 
   const pgId = review.pg;

@@ -35,6 +35,7 @@ export function useUpdateInquiryStatus() {
       inquiryApi.updateStatus({ id, status }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['inquiries'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] }); // the inbox tab counts come from here
     },
   });
 }

@@ -32,9 +32,13 @@ export function ReviewSection({ pgId }: ReviewSectionProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!comment.trim()) return;
-    await addOrUpdateReview.mutateAsync({ rating, comment });
-    setComment('');
-    setShowForm(false);
+    try {
+      await addOrUpdateReview.mutateAsync({ rating, comment });
+      setComment('');
+      setShowForm(false);
+    } catch {
+      // The hook shows a toast; the form stays open so nothing typed is lost
+    }
   };
 
   if (isLoading) {

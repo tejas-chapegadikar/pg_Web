@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { reviewApi } from '@/api/review';
+import { pgKeys } from '@/hooks/usePG';
 import { useUIStore } from '@/stores/uiStore';
 import type { CreateReviewPayload } from '@/types';
 
@@ -20,13 +21,13 @@ export function useAddOrUpdateReview(pgId: string) {
     onSuccess: () => {
       addToast({ title: 'Review submitted!', description: 'Thank you for your feedback.', variant: 'success' });
       queryClient.invalidateQueries({ queryKey: ['reviews', pgId] });
-      queryClient.invalidateQueries({ queryKey: ['pg', pgId] });
-      queryClient.invalidateQueries({ queryKey: ['pgs'] });
+      queryClient.invalidateQueries({ queryKey: pgKeys.detail(pgId) });
+      queryClient.invalidateQueries({ queryKey: pgKeys.lists() });
     },
-    onError: (err: any) => {
+    onError: (err) => {
       addToast({
         title: 'Failed to submit review',
-        description: err.response?.data?.message || 'Something went wrong',
+        description: (err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Something went wrong',
         variant: 'destructive',
       });
     },
@@ -42,8 +43,8 @@ export function useDeleteReview(pgId: string) {
     onSuccess: () => {
       addToast({ title: 'Review deleted', variant: 'success' });
       queryClient.invalidateQueries({ queryKey: ['reviews', pgId] });
-      queryClient.invalidateQueries({ queryKey: ['pg', pgId] });
-      queryClient.invalidateQueries({ queryKey: ['pgs'] });
+      queryClient.invalidateQueries({ queryKey: pgKeys.detail(pgId) });
+      queryClient.invalidateQueries({ queryKey: pgKeys.lists() });
     },
     onError: () => {
       addToast({ title: 'Failed to delete review', variant: 'destructive' });
