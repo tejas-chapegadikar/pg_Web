@@ -11,6 +11,8 @@ import logo from '@/assets/logo-mark.svg';
 import { PhonePreview } from './PhonePreview';
 
 const BRAND_BLUE = '#0046FF';
+// The link people share, whichever address they opened the page on
+const SITE_URL = 'https://www.anieghar.com';
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
 const SAVED_KEY = 'anieghar-waitlist'; // remembers a returning visitor already joined
 
@@ -391,7 +393,7 @@ function Swirl() {
 
 function ThanksDialog({ again, onClose }: { again: boolean; onClose: () => void }) {
   const { addToast } = useUIStore();
-  const link = window.location.origin;
+  const link = SITE_URL;
   const [copied, setCopied] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -483,7 +485,7 @@ function ThanksDialog({ again, onClose }: { again: boolean; onClose: () => void 
         </div>
 
         <div className="mt-4 flex h-12 items-center gap-2 rounded-full bg-ink pl-5 pr-1.5 text-white">
-          <span className="min-w-0 flex-1 truncate text-left text-[13px]">{link.replace(/^https?:\/\//, '')}</span>
+          <span className="min-w-0 flex-1 truncate text-left text-[13px]">{link.replace(/^https:\/\//, '')}</span>
           <button
             type="button"
             onClick={copy}
