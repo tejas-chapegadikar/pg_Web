@@ -12,6 +12,12 @@ const waitlistEntrySchema = new mongoose.Schema(
       maxlength: [254, 'Email is too long'],
       match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email'],
     },
+    // Who they are, so we know how many students and brokers are waiting
+    role: {
+      type: String,
+      enum: ['student', 'owner'],
+      default: 'student',
+    },
   },
   { timestamps: true }
 );

@@ -11,7 +11,10 @@ exports.join = catchAsync(async (req, res) => {
     throw new AppError('Enter a valid email address.', 400);
   }
 
-  const result = await WaitlistEntry.updateOne({ email }, { $setOnInsert: { email } }, { upsert: true });
+  const role = req.body?.role === 'owner' ? 'owner' : 'student';
+
+  // Joining again keeps one row and just updates the role they picked
+  const result = await WaitlistEntry.updateOne({ email }, { $setOnInsert: { email }, $set: { role } }, { upsert: true });
   const alreadyJoined = result.upsertedCount === 0;
   const count = await WaitlistEntry.estimatedDocumentCount();
 

@@ -19,6 +19,13 @@ describe('Waitlist', () => {
     expect(await WaitlistEntry.countDocuments({ email: 'first@test.com' })).toBe(1);
   });
 
+  it('saves whether they are a student or a broker', async () => {
+    await request(app).post('/api/waitlist').send({ email: 'broker@test.com', role: 'owner' });
+    expect((await WaitlistEntry.findOne({ email: 'broker@test.com' })).role).toBe('owner');
+    await request(app).post('/api/waitlist').send({ email: 'odd@test.com', role: 'admin' });
+    expect((await WaitlistEntry.findOne({ email: 'odd@test.com' })).role).toBe('student');
+  });
+
   it('keeps one row when the same email is sent twice at once', async () => {
     await Promise.all([1, 2].map(() => request(app).post('/api/waitlist').send({ email: 'twice@test.com' })));
     expect(await WaitlistEntry.countDocuments({ email: 'twice@test.com' })).toBe(1);

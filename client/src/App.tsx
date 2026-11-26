@@ -45,15 +45,34 @@ function OnboardingGate() {
   return <OnboardingModal />;
 }
 
+/**
+ * Before launch, the waitlist is the whole site: every address shows it, and the listings,
+ * dashboards and sign-in stay closed. Set to false to open the full site again.
+ */
+const WAITLIST_ONLY = true;
+
 function App() {
+  if (WAITLIST_ONLY) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<WaitlistPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+          <ToastContainer />
+        </BrowserRouter>
+      </QueryClientProvider>
+    );
+  }
+
   return (
     <GoogleMapsProvider>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          {/* Auth — the only pages open without signing in; login is the site's front door */}
           {/* Front page for visitors who aren't signed in: join the waitlist or log in */}
-          <Route path="/welcome" element={<WaitlistPage />} />
+          <Route path="/welcome" element={<WaitlistPage showLogin />} />
           <Route path="/login" element={<AuthPage mode="login" />} />
           <Route path="/register" element={<AuthPage mode="register" />} />
           {/* Phone OTP now lives on the login page */}
