@@ -224,15 +224,16 @@ function Dot() {
   return <span className="inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: BRAND_BLUE }} />;
 }
 
-/** The headline number: how many students are waiting, counting up once when the page opens */
+/** The headline number: shows the real count straight away, and only animates when it changes later */
 function BigCount({ counts, className }: { counts?: WaitlistCounts; className?: string }) {
-  const [shown, setShown] = useState(0);
   const target = counts?.students ?? 0;
+  const [shown, setShown] = useState(target);
 
   useEffect(() => {
     if (!target) return;
     let frame = 0;
-    if (reducedMotion()) {
+    // First real number (or reduced motion): show it as-is, no counting from 1
+    if (!shown || reducedMotion()) {
       frame = requestAnimationFrame(() => setShown(target));
       return () => cancelAnimationFrame(frame);
     }
@@ -260,7 +261,7 @@ function BigCount({ counts, className }: { counts?: WaitlistCounts; className?: 
             className="mt-1 font-semibold leading-none tracking-[-0.04em] tabular-nums text-[clamp(64px,13vh,132px)]"
             style={{ color: BRAND_BLUE }}
           >
-            {shown.toLocaleString('en-IN')}
+            {(shown || target).toLocaleString('en-IN')}
           </p>
           <p className="mt-2 text-[15px] font-medium sm:text-[17px]">
             {target === 1 ? 'student is' : 'students are'} already on the waitlist
