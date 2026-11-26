@@ -8,7 +8,7 @@ describe('Waitlist', () => {
   it('adds an email and returns the new count', async () => {
     const res = await request(app).post('/api/waitlist').send({ email: '  First@Test.com ' });
     expect(res.statusCode).toBe(201);
-    expect(res.body.data).toEqual({ alreadyJoined: false, count: 1 });
+    expect(res.body.data).toEqual({ alreadyJoined: false, count: 1, students: 1, owners: 0 });
     expect(await WaitlistEntry.findOne({ email: 'first@test.com' })).not.toBeNull();
   });
 
@@ -36,9 +36,13 @@ describe('Waitlist', () => {
     expect(res.statusCode).toBe(400);
   });
 
-  it('reports the count', async () => {
+  it('reports the count, with students and owners apart', async () => {
     const res = await request(app).get('/api/waitlist/count');
     expect(res.statusCode).toBe(200);
-    expect(res.body.data.count).toBe(await WaitlistEntry.countDocuments());
+    expect(res.body.data).toEqual({
+      count: await WaitlistEntry.countDocuments(),
+      students: await WaitlistEntry.countDocuments({ role: 'student' }),
+      owners: 1,
+    });
   });
 });
