@@ -1,11 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Coming+Soon&display=swap');
 
 @import "tailwindcss";
 
 /* New design language (monochrome, soft-gray surfaces) — adopted page by page, starting with auth */
 @theme {
   --font-display: 'General Sans', system-ui, sans-serif;
+  /* Handwritten headline on the waitlist page */
+  --font-hand: 'Coming Soon', cursive;
   --color-ink: #111111;
   --color-surface: #f4f4f6;
   --color-backdrop: #eceef2;
@@ -167,6 +170,23 @@
   animation: pop 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Waitlist page: the blue line draws itself in, the room photos bob gently */
+@keyframes draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+.animate-draw {
+  stroke-dasharray: 1;
+  animation: draw 2.2s cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.animate-float {
+  animation: float 5s ease-in-out infinite;
+}
+
 /* Scroll reveal — the Reveal component adds .is-visible once the element enters the screen */
 .reveal {
   opacity: 0;
@@ -204,7 +224,9 @@
   .stagger > *:not([aria-hidden]),
   .animate-drift,
   .animate-kenburns,
-  .animate-pop {
+  .animate-pop,
+  .animate-draw,
+  .animate-float {
     animation: none;
     opacity: 1;
   }

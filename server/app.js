@@ -16,6 +16,7 @@ const inquiryRoutes = require('./routes/inquiry.routes');
 const savesRoutes = require('./routes/saves.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const reviewRoutes = require('./routes/review.routes');
+const waitlistRoutes = require('./routes/waitlist.routes');
 
 const app = express();
 
@@ -86,6 +87,7 @@ app.use('/api/inquiries', inquiryRoutes);
 app.use('/api/saves', savesRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/waitlist', waitlistRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 app.use((req, res, next) => {

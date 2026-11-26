@@ -9,7 +9,7 @@ import { GoogleMapsProvider } from '@/components/maps/GoogleMapsProvider';
 
 // Pages
 import { AuthPage } from '@/pages/auth/AuthPage';
-import { WelcomePage } from '@/pages/auth/WelcomePage';
+import { WaitlistPage } from '@/pages/waitlist/WaitlistPage';
 import { ResetPasswordPage } from '@/pages/auth/ResetPasswordPage';
 import { PGListPage } from '@/pages/pg/PGListPage';
 import { PGDetailsPage } from '@/pages/pg/PGDetailsPage';
@@ -52,7 +52,8 @@ function App() {
       <BrowserRouter>
         <Routes>
           {/* Auth — the only pages open without signing in; login is the site's front door */}
-          <Route path="/welcome" element={<WelcomePage />} />
+          {/* Front page for visitors who aren't signed in: join the waitlist or log in */}
+          <Route path="/welcome" element={<WaitlistPage />} />
           <Route path="/login" element={<AuthPage mode="login" />} />
           <Route path="/register" element={<AuthPage mode="register" />} />
           {/* Phone OTP now lives on the login page */}
