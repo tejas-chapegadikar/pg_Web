@@ -9,6 +9,7 @@ import { AdminLayout } from './AdminLayout';
 import { OverviewPage } from './OverviewPage';
 import { PropertiesPage } from './PropertiesPage';
 import { PropertyFormPage } from './PropertyFormPage';
+import { WaitlistAdminPage } from './WaitlistAdminPage';
 import { UsersPage } from './UsersPage';
 import { AnalyticsPage } from './AnalyticsPage';
 import { LogsPage } from './LogsPage';
@@ -64,6 +65,7 @@ function Gate() {
           <Route path="properties" element={<PropertiesPage />} />
           <Route path="properties/new" element={<PropertyFormPage />} />
           <Route path="properties/:id" element={<PropertyFormPage />} />
+          <Route path="waitlist" element={<WaitlistAdminPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="activity" element={<LogsPage />} />

@@ -1,4 +1,4 @@
-import type { AdminListing, AdminRole, PlatformMode } from '@/api/admin';
+import type { AdminListing, AdminRole, PlatformMode, WaitlistStatus } from '@/api/admin';
 import type { Tone } from './ui';
 
 export const ROLE_LABEL: Record<AdminRole, string> = { founder: 'Founder', cofounder: 'Co-founder' };
@@ -8,6 +8,14 @@ export const MODE_META: Record<PlatformMode, { label: string; dot: string; text:
   public: { label: 'Public', dot: 'bg-emerald-500', text: 'Everyone can use the full app.' },
   maintenance: { label: 'Maintenance', dot: 'bg-red-500', text: 'Visitors see a “back soon” page.' },
 };
+
+export const WAITLIST_STATUS: { value: WaitlistStatus; label: string; tone: Tone }[] = [
+  { value: 'new', label: 'New', tone: 'blue' },
+  { value: 'contacted', label: 'Contacted', tone: 'neutral' },
+  { value: 'interested', label: 'Interested', tone: 'amber' },
+  { value: 'converted', label: 'Converted', tone: 'green' },
+];
+export const waitlistStatusMeta = (s?: string) => WAITLIST_STATUS.find((x) => x.value === s) ?? WAITLIST_STATUS[0];
 
 /** One badge for where a listing stands, in order of what matters most */
 export function listingState(pg: Pick<AdminListing, 'status' | 'isActive'>): { label: string; tone: Tone } {
@@ -34,6 +42,10 @@ export const ACTION_LABEL: Record<string, string> = {
   'user.reactivate': 'Reactivated a user',
   'user.role': 'Changed account type',
   'admin.permissions': 'Changed admin access',
+  'waitlist.status': 'Updated waitlist status',
+  'waitlist.update': 'Edited a registration',
+  'waitlist.note': 'Added a waitlist note',
+  'waitlist.export': 'Exported the waitlist',
   'settings.mode': 'Changed the site mode',
   'settings.update': 'Changed settings',
 };

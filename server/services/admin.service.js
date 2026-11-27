@@ -97,7 +97,7 @@ exports.overview = async () => {
 
   const [
     totalListings, activePG, activeFlat, pending,
-    waitlistTotal, waitlistNewWeek,
+    waitlistTotal, waitlistNewWeek, waitlistUncontacted,
     students, brokers,
     recentProperties, recentUsers,
     waitlistTrend, listingTrend, typeSplit, listingsByCity,
@@ -109,6 +109,7 @@ exports.overview = async () => {
     PGListing.countDocuments({ ...NOT_DELETED, status: 'pending' }),
     WaitlistEntry.countDocuments(),
     WaitlistEntry.countDocuments({ createdAt: { $gte: weekAgo } }),
+    WaitlistEntry.countDocuments({ status: { $in: ['new', null] } }),
     User.countDocuments({ ...NOT_DELETED, role: 'student' }),
     User.countDocuments({ ...NOT_DELETED, role: 'owner' }),
     PGListing.find().sort({ createdAt: -1 }).limit(5).populate('owner', 'name email').lean(),
@@ -123,7 +124,7 @@ exports.overview = async () => {
     mode: settings.mode,
     stats: {
       totalListings, activePG, activeFlat, pending,
-      waitlistTotal, waitlistNewWeek,
+      waitlistTotal, waitlistNewWeek, waitlistUncontacted,
       students, brokers,
     },
     recentProperties,
@@ -146,15 +147,17 @@ exports.analytics = async (query) => {
   const since = new Date(Date.now() - days * DAY);
   const [
     waitlistTrend, listingTrend, userTrend,
-    waitlistByRole,
+    waitlistByCity, waitlistByCollege, waitlistByStatus, waitlistByRole,
     listingsByCity, listingsByGender, usersByRole,
     rentStats, topViewed,
     inquiries,
   ] = await Promise.all([
-    // Waitlist: counts only, never who joined
     perDay(WaitlistEntry, {}, days),
     perDay(PGListing, NOT_DELETED, days),
     perDay(User, NOT_DELETED, days),
+    groupCount(WaitlistEntry, {}, 'city'),
+    groupCount(WaitlistEntry, {}, 'college'),
+    groupCount(WaitlistEntry, {}, 'status'),
     groupCount(WaitlistEntry, {}, 'role'),
     groupCount(PGListing, NOT_DELETED, 'location.city'),
     groupCount(PGListing, NOT_DELETED, 'genderPreference'),
@@ -177,7 +180,7 @@ exports.analytics = async (query) => {
       inquiries,
     },
     waitlistTrend, listingTrend, userTrend,
-    waitlistByRole,
+    waitlistByCity, waitlistByCollege, waitlistByStatus, waitlistByRole,
     listingsByCity, listingsByGender, usersByRole,
     rent: rentStats.map((r) => ({ type: r._id, avg: Math.round(r.avg || 0), min: r.min, max: r.max, count: r.count })),
     topViewed,
@@ -354,8 +357,104 @@ exports.reorderImages = async (admin, id, order) => {
 };
 
 // ── Waitlist ─────────────────────────────────────────────────────────────────
-// Deliberately none: admins only ever see how many people joined (overview & analytics),
-// never who they are.
+
+const waitlistFilter = (query) => {
+  const filter = {};
+  if (query.q && String(query.q).trim()) {
+    const p = like(query.q);
+    filter.$or = [{ email: p }, { name: p }, { phone: p }];
+  }
+  if (query.status === 'new') filter.status = { $in: ['new', null] };
+  else if (['contacted', 'interested', 'converted'].includes(query.status)) filter.status = query.status;
+  if (['student', 'owner'].includes(query.role)) filter.role = query.role === 'owner' ? 'owner' : { $ne: 'owner' };
+  if (query.college) filter.college = like(query.college);
+  if (query.city) filter.city = like(query.city);
+  return filter;
+};
+
+exports.listWaitlist = async (query) => {
+  const { page, limit, skip } = paging(query);
+  const filter = waitlistFilter(query);
+  const sort = query.sort === 'oldest' ? { createdAt: 1 } : { createdAt: -1 };
+  const [items, total, colleges, cities, statusRows] = await Promise.all([
+    WaitlistEntry.find(filter).sort(sort).skip(skip).limit(limit).lean(),
+    WaitlistEntry.countDocuments(filter),
+    WaitlistEntry.distinct('college'),
+    WaitlistEntry.distinct('city'),
+    WaitlistEntry.aggregate([{ $group: { _id: { $ifNull: ['$status', 'new'] }, count: { $sum: 1 } } }]),
+  ]);
+  return {
+    items: items.map((e) => ({ ...e, status: e.status || 'new' })),
+    pagination: pageInfo(total, page, limit),
+    colleges: colleges.filter(Boolean).sort(),
+    cities: cities.filter(Boolean).sort(),
+    statusCounts: Object.fromEntries(statusRows.map((r) => [r._id, r.count])),
+  };
+};
+
+exports.getWaitlistEntry = async (id) => {
+  assertId(id, 'Registration');
+  const entry = await WaitlistEntry.findById(id).lean();
+  if (!entry) throw new AppError('Registration not found.', 404);
+  // Did they go on to make an account?
+  const account = await User.findOne({ email: entry.email }).select('name role createdAt isSuspended').lean();
+  return { ...entry, status: entry.status || 'new', account };
+};
+
+const WAITLIST_FIELDS = ['status', 'name', 'phone', 'college', 'city'];
+
+exports.updateWaitlistEntry = async (admin, id, data) => {
+  assertId(id, 'Registration');
+  const entry = await WaitlistEntry.findById(id);
+  if (!entry) throw new AppError('Registration not found.', 404);
+  const before = entry.toObject();
+  for (const key of WAITLIST_FIELDS) {
+    if (key in data) entry[key] = typeof data[key] === 'string' ? data[key].trim() : data[key];
+  }
+  await entry.save();
+  const changes = diff(before, entry.toObject(), WAITLIST_FIELDS);
+  if (changes.changed.length) {
+    await log(admin, {
+      action: changes.changed.includes('status') ? 'waitlist.status' : 'waitlist.update',
+      targetType: 'waitlist', targetId: id, summary: entry.email, before: changes.before, after: changes.after,
+    });
+  }
+  return entry;
+};
+
+exports.addWaitlistNote = async (admin, id, text) => {
+  assertId(id, 'Registration');
+  const value = String(text || '').trim();
+  if (!value) throw new AppError('Write a note first.', 400);
+  const entry = await WaitlistEntry.findById(id);
+  if (!entry) throw new AppError('Registration not found.', 404);
+  entry.notes.push({ text: value.slice(0, 1000), by: admin.user.name || admin.user.email });
+  await entry.save();
+  await log(admin, { action: 'waitlist.note', targetType: 'waitlist', targetId: id, summary: entry.email, after: { note: value.slice(0, 200) } });
+  return entry;
+};
+
+/** CSV of the filtered waitlist. Cells starting with = + - @ are quoted so spreadsheets don't run them. */
+exports.exportWaitlist = async (admin, query) => {
+  const rows = await WaitlistEntry.find(waitlistFilter(query)).sort({ createdAt: -1 }).lean();
+  const cell = (v) => {
+    let s = v == null ? '' : String(v);
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const header = ['Email', 'Name', 'Phone', 'College', 'City', 'Type', 'Status', 'Joined', 'Notes'];
+  const lines = rows.map((r) =>
+    [
+      r.email, r.name, r.phone, r.college, r.city,
+      r.role === 'owner' ? 'Broker' : 'Student',
+      r.status || 'new',
+      new Date(r.createdAt).toISOString(),
+      (r.notes || []).map((n) => n.text).join(' | '),
+    ].map(cell).join(',')
+  );
+  await log(admin, { action: 'waitlist.export', targetType: 'waitlist', summary: `${rows.length} rows exported` });
+  return '﻿' + [header.join(','), ...lines].join('\r\n');
+};
 
 // ── Users ────────────────────────────────────────────────────────────────────
 
@@ -395,14 +494,15 @@ exports.getUser = async (id) => {
   assertId(id, 'User');
   const user = await User.findById(id).lean();
   if (!user) throw new AppError('User not found.', 404);
-  const [listings, inquiriesSent, inquiriesReceived, saves, logs] = await Promise.all([
+  const [listings, inquiriesSent, inquiriesReceived, saves, waitlist, logs] = await Promise.all([
     PGListing.find({ owner: id }).sort({ createdAt: -1 }).select('title propertyType rent status isActive createdAt location.city').limit(20).lean(),
     Inquiry.countDocuments({ student: id }),
     Inquiry.countDocuments({ owner: id }),
     SavedListing.countDocuments({ student: id }),
+    user.email ? WaitlistEntry.findOne({ email: user.email }).select('createdAt status').lean() : null,
     ActivityLog.find({ targetType: 'user', targetId: String(id) }).sort({ createdAt: -1 }).limit(10).lean(),
   ]);
-  return { user: publicUser(user), listings, activity: { inquiriesSent, inquiriesReceived, saves }, logs };
+  return { user: publicUser(user), listings, activity: { inquiriesSent, inquiriesReceived, saves, waitlist }, logs };
 };
 
 /**
@@ -502,9 +602,8 @@ exports.updateSettings = async (admin, data) => {
 
 exports.listLogs = async (query) => {
   const { page, limit, skip } = paging(query, 100);
-  // Older waitlist entries in the log name people's emails; they're never shown
-  const filter = { targetType: { $ne: 'waitlist' } };
-  if (query.type && ['property', 'user', 'settings'].includes(query.type)) filter.targetType = query.type;
+  const filter = {};
+  if (query.type && ['property', 'user', 'waitlist', 'settings'].includes(query.type)) filter.targetType = query.type;
   if (query.admin && mongoose.isValidObjectId(query.admin)) filter.admin = query.admin;
   if (query.targetId) filter.targetId = String(query.targetId);
   const [items, total, admins] = await Promise.all([

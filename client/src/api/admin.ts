@@ -3,6 +3,7 @@ import type { PGListing, User } from '@/types';
 
 export type AdminRole = 'founder' | 'cofounder';
 export type PlatformMode = 'waitlist' | 'public' | 'maintenance';
+export type WaitlistStatus = 'new' | 'contacted' | 'interested' | 'converted';
 
 export interface Pagination {
   total: number;
@@ -44,6 +45,27 @@ export interface AdminUser extends Omit<User, 'role'> {
   updatedAt?: string;
 }
 
+export interface WaitlistNote {
+  _id: string;
+  text: string;
+  by?: string;
+  at: string;
+}
+export interface WaitlistRow {
+  _id: string;
+  email: string;
+  role: 'student' | 'owner';
+  name?: string;
+  phone?: string;
+  college?: string;
+  city?: string;
+  status: WaitlistStatus;
+  notes?: WaitlistNote[];
+  createdAt: string;
+  updatedAt: string;
+  account?: { _id: string; name?: string; role: string; createdAt: string; isSuspended?: boolean } | null;
+}
+
 export interface ActivityEntry {
   _id: string;
   admin: string;
@@ -51,7 +73,7 @@ export interface ActivityEntry {
   adminEmail?: string;
   adminRole?: AdminRole;
   action: string;
-  targetType?: 'property' | 'user' | 'settings';
+  targetType?: 'property' | 'user' | 'waitlist' | 'settings';
   targetId?: string;
   summary?: string;
   before?: Record<string, unknown>;
@@ -80,6 +102,7 @@ export interface Overview {
     pending: number;
     waitlistTotal: number;
     waitlistNewWeek: number;
+    waitlistUncontacted: number;
     students: number;
     brokers: number;
   };
@@ -94,6 +117,9 @@ export interface Analytics {
   waitlistTrend: DayCount[];
   listingTrend: DayCount[];
   userTrend: DayCount[];
+  waitlistByCity: LabelCount[];
+  waitlistByCollege: LabelCount[];
+  waitlistByStatus: LabelCount[];
   waitlistByRole: LabelCount[];
   listingsByCity: LabelCount[];
   listingsByGender: LabelCount[];
@@ -131,12 +157,32 @@ export const adminApi = {
   reorderPhotos: (id: string, order: string[]) =>
     data<{ pg: AdminListing }>(apiClient.put(`/admin/properties/${id}/images/order`, { order })).then((d) => d.pg),
 
+  waitlist: (q: Query) =>
+    data<{ items: WaitlistRow[]; pagination: Pagination; colleges: string[]; cities: string[]; statusCounts: Record<string, number> }>(
+      apiClient.get('/admin/waitlist', { params: clean(q) })
+    ),
+  waitlistEntry: (id: string) => data<{ entry: WaitlistRow }>(apiClient.get(`/admin/waitlist/${id}`)).then((d) => d.entry),
+  updateWaitlist: (id: string, body: Partial<WaitlistRow>) =>
+    data<{ entry: WaitlistRow }>(apiClient.patch(`/admin/waitlist/${id}`, body)).then((d) => d.entry),
+  addWaitlistNote: (id: string, text: string) =>
+    data<{ entry: WaitlistRow }>(apiClient.post(`/admin/waitlist/${id}/notes`, { text })).then((d) => d.entry),
+  /** Downloads the CSV through the signed-in API client, so the file never sits at a public link */
+  exportWaitlist: async (q: Query) => {
+    const res = await apiClient.get('/admin/waitlist/export', { params: clean(q), responseType: 'blob' });
+    const url = URL.createObjectURL(res.data as Blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `anieghar-waitlist-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  },
+
   users: (q: Query) => data<{ items: AdminUser[]; pagination: Pagination }>(apiClient.get('/admin/users', { params: clean(q) })),
   user: (id: string) =>
     data<{
       user: AdminUser;
       listings: AdminListing[];
-      activity: { inquiriesSent: number; inquiriesReceived: number; saves: number };
+      activity: { inquiriesSent: number; inquiriesReceived: number; saves: number; waitlist: { createdAt: string; status?: string } | null };
       logs: ActivityEntry[];
     }>(apiClient.get(`/admin/users/${id}`)),
   updateUser: (id: string, body: { role?: string; isSuspended?: boolean; reason?: string; adminRole?: AdminRole | null }) =>
