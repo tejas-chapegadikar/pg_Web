@@ -26,11 +26,7 @@ router.post('/properties/:id/images', handleUploadErrors(upload.array('images', 
 router.put('/properties/:id/images/order', c.reorderImages);
 router.delete('/properties/:id/images/:publicId', c.deleteImage);
 
-router.get('/waitlist', c.listWaitlist);
-router.get('/waitlist/export', c.exportWaitlist);
-router.get('/waitlist/:id', c.getWaitlistEntry);
-router.patch('/waitlist/:id', c.updateWaitlistEntry);
-router.post('/waitlist/:id/notes', c.addWaitlistNote);
+// No waitlist routes on purpose: admins see only how many joined (overview/analytics), never who
 
 router.get('/users', c.listUsers);
 router.get('/users/:id', c.getUser);

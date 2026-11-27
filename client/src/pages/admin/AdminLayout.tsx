@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Activity, BarChart3, Building2, LayoutGrid, ListChecks, LogOut, Menu, Settings, Users, X } from 'lucide-react';
+import { Activity, BarChart3, Building2, LayoutGrid, LogOut, Menu, Settings, Users, X } from 'lucide-react';
 import { authApi } from '@/api/auth';
 import { adminApi } from '@/api/admin';
 import { useAuthStore } from '@/stores/authStore';
@@ -15,7 +15,6 @@ import { ADMIN } from './adminPath';
 const NAV = [
   { to: ADMIN, label: 'Overview', icon: LayoutGrid, end: true },
   { to: `${ADMIN}/properties`, label: 'Properties', icon: Building2 },
-  { to: `${ADMIN}/waitlist`, label: 'Waitlist', icon: ListChecks },
   { to: `${ADMIN}/users`, label: 'Users', icon: Users },
   { to: `${ADMIN}/analytics`, label: 'Analytics', icon: BarChart3 },
   { to: `${ADMIN}/activity`, label: 'Activity logs', icon: Activity },

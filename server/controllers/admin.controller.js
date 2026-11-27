@@ -35,22 +35,6 @@ exports.reorderImages = catchAsync(async (req, res) =>
   ok(res, { pg: await admin.reorderImages(actor(req), req.params.id, req.body?.order) })
 );
 
-// Waitlist
-exports.listWaitlist = catchAsync(async (req, res) => ok(res, await admin.listWaitlist(req.query)));
-exports.getWaitlistEntry = catchAsync(async (req, res) => ok(res, { entry: await admin.getWaitlistEntry(req.params.id) }));
-exports.updateWaitlistEntry = catchAsync(async (req, res) => ok(res, { entry: await admin.updateWaitlistEntry(actor(req), req.params.id, req.body || {}) }));
-exports.addWaitlistNote = catchAsync(async (req, res) => ok(res, { entry: await admin.addWaitlistNote(actor(req), req.params.id, req.body?.text) }, 201));
-exports.exportWaitlist = catchAsync(async (req, res) => {
-  const csv = await admin.exportWaitlist(actor(req), req.query);
-  const date = new Date().toISOString().slice(0, 10);
-  res.set({
-    'Content-Type': 'text/csv; charset=utf-8',
-    'Content-Disposition': `attachment; filename="anieghar-waitlist-${date}.csv"`,
-    'Cache-Control': 'no-store',
-  });
-  res.send(csv);
-});
-
 // Users
 exports.listUsers = catchAsync(async (req, res) => ok(res, await admin.listUsers(req.query)));
 exports.getUser = catchAsync(async (req, res) => ok(res, await admin.getUser(req.params.id)));

@@ -15,7 +15,6 @@ const TYPES = [
   { value: '', label: 'Everything' },
   { value: 'property', label: 'Properties' },
   { value: 'user', label: 'Users' },
-  { value: 'waitlist', label: 'Waitlist' },
   { value: 'settings', label: 'Settings' },
 ];
 
@@ -78,7 +77,6 @@ const targetLink = (l: ActivityEntry) => {
   if (!l.targetId) return null;
   if (l.targetType === 'property') return `${ADMIN}/properties/${l.targetId}`;
   if (l.targetType === 'user') return `${ADMIN}/users?open=${l.targetId}`;
-  if (l.targetType === 'waitlist') return `${ADMIN}/waitlist?open=${l.targetId}`;
   if (l.targetType === 'settings') return `${ADMIN}/settings`;
   return null;
 };

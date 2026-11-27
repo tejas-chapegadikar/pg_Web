@@ -157,25 +157,17 @@ describe('Admin panel', () => {
     expect((await request(app).get('/api/admin/me').set(auth(student.token))).statusCode).toBe(403);
   });
 
-  it('shows the waitlist, updates status and notes, and exports CSV', async () => {
-    await request(app).post('/api/waitlist').send({ email: 'wait1@admin.test' });
-    await request(app).post('/api/waitlist').send({ email: '=cmd@admin.test' });
-    const list = await request(app).get('/api/admin/waitlist').set(auth(cofounder.token));
-    expect(list.body.data.items.length).toBe(2);
-    const entry = list.body.data.items.find((e) => e.email === 'wait1@admin.test');
-    expect(entry.status).toBe('new');
+  it('gives admins waitlist numbers only, never who joined', async () => {
+    await request(app).post('/api/waitlist').send({ email: 'private-person@admin.test' });
+    const entry = await WaitlistEntry.findOne({ email: 'private-person@admin.test' });
 
-    await request(app).patch(`/api/admin/waitlist/${entry._id}`).set(auth(cofounder.token)).send({ status: 'contacted', college: 'JEC' });
-    await request(app).post(`/api/admin/waitlist/${entry._id}/notes`).set(auth(cofounder.token)).send({ text: 'Called, wants a single room' });
-    const detail = await request(app).get(`/api/admin/waitlist/${entry._id}`).set(auth(founder.token));
-    expect(detail.body.data.entry).toMatchObject({ status: 'contacted', college: 'JEC' });
-    expect(detail.body.data.entry.notes[0].text).toBe('Called, wants a single room');
-
-    const csv = await request(app).get('/api/admin/waitlist/export').set(auth(founder.token));
-    expect(csv.headers['content-type']).toMatch(/text\/csv/);
-    expect(csv.text).toContain('wait1@admin.test');
-    expect(csv.text).toContain("'=cmd@admin.test"); // can't run as a spreadsheet formula
-    expect((await request(app).get('/api/admin/waitlist/export').set(auth(student.token))).statusCode).toBe(403);
+    for (const path of ['/api/admin/waitlist', '/api/admin/waitlist/export', `/api/admin/waitlist/${entry._id}`]) {
+      expect((await request(app).get(path).set(auth(founder.token))).statusCode).toBe(404);
+    }
+    const overview = await request(app).get('/api/admin/overview').set(auth(founder.token));
+    const analytics = await request(app).get('/api/admin/analytics').set(auth(founder.token));
+    expect(overview.body.data.stats.waitlistTotal).toBe(await WaitlistEntry.countDocuments());
+    for (const res of [overview, analytics]) expect(JSON.stringify(res.body)).not.toContain('private-person');
   });
 
   it('gives real numbers on the overview', async () => {

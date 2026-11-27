@@ -5,7 +5,6 @@ import { adminApi, type DayCount } from '@/api/admin';
 import { formatRent } from '@/components/listing/meta';
 import { cn } from '@/lib/utils';
 import { BarList, SplitBar, TrendChart } from './charts';
-import { waitlistStatusMeta } from './labels';
 import {
   Card, CardHeader, PageHeader, StatCard,
 } from './ui';
@@ -68,31 +67,20 @@ export function AnalyticsPage() {
           </Card>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Card>
-            <CardHeader title="Waitlist by city" description="Where the team filled it in" />
-            <div className="p-5">{data && <BarList data={data.waitlistByCity} />}</div>
-          </Card>
-          <Card>
-            <CardHeader title="Waitlist by college" />
-            <div className="p-5">{data && <BarList data={data.waitlistByCollege} />}</div>
-          </Card>
-          <Card>
-            <CardHeader title="Waitlist follow-up" />
+            <CardHeader title="Waitlist" description="All time, numbers only" />
             <div className="p-5">
               {data && (
                 <SplitBar
-                  data={['new', 'contacted', 'interested', 'converted'].map((s) => ({
-                    label: waitlistStatusMeta(s).label,
-                    count: data.waitlistByStatus.filter((r) => (s === 'new' ? r.label === 'new' || r.label === 'Not given' : r.label === s)).reduce((a, r) => a + r.count, 0),
-                  }))}
+                  data={[
+                    { label: 'Students', count: data.waitlistByRole.filter((r) => r.label !== 'owner').reduce((a, r) => a + r.count, 0) },
+                    { label: 'Brokers', count: data.waitlistByRole.find((r) => r.label === 'owner')?.count ?? 0 },
+                  ]}
                 />
               )}
             </div>
           </Card>
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-3">
           <Card>
             <CardHeader title="Listings by city" />
             <div className="p-5">{data && <BarList data={data.listingsByCity} format={titleCase} />}</div>

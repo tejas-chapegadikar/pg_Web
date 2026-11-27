@@ -189,7 +189,6 @@ function UserDrawer({ id, onClose }: { id: string | null; onClose: () => void })
             <Info label="Phone" value={u.phone ? `${u.phone}${u.phoneVerified ? ' (verified)' : ''}` : '—'} />
             <Info label="Last sign-in" value={u.lastLoginAt ? fmtDateTime(u.lastLoginAt) : '—'} />
             <Info label="Onboarding" value={u.isOnboarded === false ? 'Not finished' : 'Done'} />
-            <Info label="Waitlist" value={data.activity.waitlist ? `Joined ${fmtDate(data.activity.waitlist.createdAt)}` : 'Not on it'} />
             {u.role === 'owner' ? (
               <Info label="Requests received" value={String(data.activity.inquiriesReceived)} />
             ) : (

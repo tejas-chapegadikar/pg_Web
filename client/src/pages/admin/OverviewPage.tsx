@@ -52,7 +52,6 @@ export function OverviewPage() {
           hint={s?.pending ? <Link to={`${ADMIN}/properties?status=pending`} className="underline-offset-2 hover:underline">Review now</Link> : 'Nothing waiting'}
         />
         <StatCard label="Waitlist" value={s?.waitlistTotal} loading={isPending} hint={s && `+${s.waitlistNewWeek} this week`} />
-        <StatCard label="Not yet contacted" value={s?.waitlistUncontacted} loading={isPending} hint="Waitlist status: New" />
         <StatCard label="Students" value={s?.students} loading={isPending} hint="Registered accounts" />
         <StatCard label="Brokers" value={s?.brokers} loading={isPending} hint="Registered accounts" />
       </div>
