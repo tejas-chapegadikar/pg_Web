@@ -238,23 +238,28 @@ function Dot() {
   return <span className="inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: BRAND_BLUE }} />;
 }
 
-/** The headline number: shows the real count straight away, and only animates when it changes later */
+/**
+ * The headline number. Stays blank (but keeps its space) until the real count arrives,
+ * then races up from 1 to it in well under a second.
+ */
 function BigCount({ counts, message, className }: { counts?: WaitlistCounts; message?: string; className?: string }) {
+  const loaded = counts !== undefined;
   const target = counts?.students ?? 0;
-  const [shown, setShown] = useState(target);
+  const [shown, setShown] = useState(0);
 
   useEffect(() => {
-    if (!target) return;
+    if (!loaded) return;
     let frame = 0;
-    // First real number (or reduced motion): show it as-is, no counting from 1
-    if (!shown || reducedMotion()) {
+    if (reducedMotion() || target <= 1) {
       frame = requestAnimationFrame(() => setShown(target));
       return () => cancelAnimationFrame(frame);
     }
-    const from = shown;
+    // From 1 on first load; from the current number when it changes later (e.g. after joining)
+    const from = shown > 0 ? shown : 1;
+    const duration = 700;
     const start = performance.now();
     const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / 900);
+      const t = Math.min(1, (now - start) / duration);
       setShown(Math.round(from + (target - from) * (1 - Math.pow(1 - t, 3))));
       if (t < 1) frame = requestAnimationFrame(tick);
     };
@@ -262,33 +267,22 @@ function BigCount({ counts, message, className }: { counts?: WaitlistCounts; mes
     return () => cancelAnimationFrame(frame);
     // Only re-run when the real number changes; `shown` is just where to count from
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target]);
+  }, [loaded, target]);
 
   return (
-    <div className={cn('flex flex-col items-center', className)} aria-live="polite">
-      {target > 0 ? (
-        <>
-          <p className="flex items-center gap-2 text-[12px] font-medium uppercase tracking-[0.14em] text-muted">
-            <Dot /> Live count
-          </p>
-          <p
-            className="mt-1 font-semibold leading-none tracking-[-0.04em] tabular-nums text-[clamp(64px,13vh,132px)]"
-            style={{ color: BRAND_BLUE }}
-          >
-            {(shown || target).toLocaleString('en-IN')}
-          </p>
-          <p className="mt-2 text-[15px] font-medium sm:text-[17px]">
-            {message || `${target === 1 ? 'student is' : 'students are'} already on the waitlist`}
-          </p>
-        </>
-      ) : (
-        <>
-          <p className="font-semibold leading-none tracking-tight text-[clamp(30px,5vh,44px)]" style={{ color: BRAND_BLUE }}>
-            Be the first student
-          </p>
-          <p className="mt-2 text-[15px] text-muted">on the waitlist for your college</p>
-        </>
-      )}
+    <div className={cn('flex flex-col items-center', !loaded && 'invisible', className)} aria-live="polite" aria-busy={!loaded}>
+      <p className="flex items-center gap-2 text-[12px] font-medium uppercase tracking-[0.14em] text-muted">
+        <Dot /> Live count
+      </p>
+      <p
+        className="mt-1 font-semibold leading-none tracking-[-0.04em] tabular-nums text-[clamp(64px,13vh,132px)]"
+        style={{ color: BRAND_BLUE }}
+      >
+        {(loaded ? shown : 0).toLocaleString('en-IN')}
+      </p>
+      <p className="mt-2 text-[15px] font-medium sm:text-[17px]">
+        {message || `${target === 1 ? 'student is' : 'students are'} already on the waitlist`}
+      </p>
     </div>
   );
 }
