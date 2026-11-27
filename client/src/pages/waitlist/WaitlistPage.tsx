@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, Check, ChevronDown, Copy, Share2, X } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, Copy, PartyPopper, Share2, X } from 'lucide-react';
 import { waitlistApi, type WaitlistCounts } from '@/api/waitlist';
 import { platformApi } from '@/api/platform';
 import { ADMIN } from '@/pages/admin/adminPath';
@@ -53,6 +53,7 @@ export function WaitlistPage({ showLogin = false }: { showLogin?: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(readSaved);
   const [thanks, setThanks] = useState<{ again: boolean } | null>(null);
+  const [already, setAlready] = useState(false);
   const [phoneIndex, setPhoneIndex] = useState(0);
 
   const rootRef = useRef<HTMLDivElement>(null);
@@ -67,7 +68,9 @@ export function WaitlistPage({ showLogin = false }: { showLogin?: boolean }) {
     mutationFn: waitlistApi.join,
     onSuccess: ({ alreadyJoined, ...latest }, vars) => {
       qc.setQueryData(['waitlist-counts'], latest);
-      setThanks({ again: alreadyJoined });
+      // Joining again isn't a mistake: a friendly note in place of the form, not the thank-you window
+      if (alreadyJoined) setAlready(true);
+      else setThanks({ again: false });
       setSaved({ email: vars.email });
       try {
         localStorage.setItem(SAVED_KEY, JSON.stringify({ email: vars.email }));
@@ -186,7 +189,15 @@ export function WaitlistPage({ showLogin = false }: { showLogin?: boolean }) {
 
           <div className="mt-[clamp(16px,3vh,32px)] flex w-full flex-col items-center">
             {saved && !thanks ? (
-              <JoinedPanel saved={saved} onShare={() => setThanks({ again: true })} onReset={() => setSaved(null)} />
+              <JoinedPanel
+                saved={saved}
+                already={already}
+                onShare={() => setThanks({ again: true })}
+                onReset={() => {
+                  setSaved(null);
+                  setAlready(false);
+                }}
+              />
             ) : (
               <JoinForm
                 email={email}
@@ -361,7 +372,34 @@ function JoinForm({
 }
 
 /** Shown instead of the form to someone who already joined from this browser */
-function JoinedPanel({ saved, onShare, onReset }: { saved: { email: string }; onShare: () => void; onReset: () => void }) {
+function JoinedPanel({ saved, already, onShare, onReset }: { saved: { email: string }; already?: boolean; onShare: () => void; onReset: () => void }) {
+  if (already) {
+    return (
+      <div className="flex w-full max-w-[480px] flex-col items-center gap-3" role="status">
+        <div
+          className="animate-fade-in flex w-full items-center gap-3.5 rounded-3xl bg-[#0046FF]/[0.06] px-4 py-3.5 text-left ring-1 ring-[#0046FF]/15"
+        >
+          <span className="animate-pop flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white shadow-[0_8px_20px_-8px_rgba(0,70,255,0.8)]" style={{ backgroundColor: BRAND_BLUE }}>
+            <PartyPopper className="h-[18px] w-[18px]" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-[14.5px] font-semibold">You’re already on the waitlist</span>
+            <span className="block text-[12.5px] leading-snug text-muted">
+              <span className="font-medium text-ink/75">{saved.email}</span> is saved. We’ll write to you as soon as we launch.
+            </span>
+          </span>
+        </div>
+        <div className="flex items-center gap-4 text-[13px]">
+          <button type="button" onClick={onShare} className="flex h-10 items-center gap-2 rounded-full bg-ink px-5 font-medium text-white transition-colors hover:bg-black/85">
+            <Share2 className="h-4 w-4" /> Invite friends
+          </button>
+          <button type="button" onClick={onReset} className="text-muted underline-offset-4 hover:text-ink hover:underline">
+            Use another email
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="flex w-full max-w-[480px] flex-col items-center gap-3">
       <div className="flex w-full items-center gap-3 rounded-full bg-surface py-2 pl-2 pr-5 text-left">
