@@ -8,6 +8,7 @@ import { firebaseErrorMessage, getGoogleIdToken, isFirebaseConfigured } from '@/
 import logo from '@/assets/logo-mark.svg';
 import type { AuthResponse } from '@/types';
 import { Button, Field, Input } from './ui';
+import { ADMIN } from './adminPath';
 
 /**
  * Sign-in for the admin panel. Uses the normal anieghar accounts (Google or email + password);
@@ -23,7 +24,7 @@ export function AdminLogin() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<'google' | 'password' | null>(null);
 
-  if (isAuthenticated && !busy) return <Navigate to="/admin" replace />;
+  if (isAuthenticated && !busy) return <Navigate to={`${ADMIN}`} replace />;
   const from = (location.state as { from?: string } | null)?.from;
 
   const finish = async (res: AuthResponse) => {
@@ -31,7 +32,7 @@ export function AdminLogin() {
     try {
       const me = await adminApi.me();
       qc.setQueryData(['admin-me'], me);
-      navigate(from?.startsWith('/admin') ? from : '/admin', { replace: true });
+      navigate(from?.startsWith(ADMIN) ? from : ADMIN, { replace: true });
     } catch (err) {
       // Not an admin: don't leave a session open from the admin login
       await authApi.logout().catch(() => {});

@@ -13,6 +13,7 @@ import {
   Badge, Button, Card, ConfirmDialog, EmptyState, Field, IconButton, PageHeader, Pager, SearchInput, Select, SkeletonRows, Table, Textarea, td, th,
 } from './ui';
 import { fmtDate, titleCase } from './format';
+import { ADMIN } from './adminPath';
 
 const STATUS_TABS = [
   { value: '', label: 'All' },
@@ -67,10 +68,10 @@ export function PropertiesPage() {
         description="Every PG and flat on anieghar. Changes here show in the app straight away."
         actions={
           <>
-            <Link to="/admin/properties/new?type=flat">
+            <Link to={`${ADMIN}/properties/new?type=flat`}>
               <Button icon={<Plus className="h-4 w-4" />}>Add flat</Button>
             </Link>
-            <Link to="/admin/properties/new?type=pg">
+            <Link to={`${ADMIN}/properties/new?type=pg`}>
               <Button variant="primary" icon={<Plus className="h-4 w-4" />}>
                 Add PG
               </Button>
@@ -130,7 +131,7 @@ export function PropertiesPage() {
               q.q || q.type || q.status || q.city ? (
                 <Button onClick={() => setParams({}, { replace: true })}>Clear filters</Button>
               ) : (
-                <Link to="/admin/properties/new">
+                <Link to={`${ADMIN}/properties/new`}>
                   <Button variant="primary">Add property</Button>
                 </Link>
               )
@@ -158,7 +159,7 @@ export function PropertiesPage() {
                   const state = listingState(pg);
                   const asListing = pg as unknown as PGListing;
                   return (
-                    <tr key={pg._id} className="group cursor-pointer transition-colors hover:bg-black/[0.015]" onClick={() => navigate(`/admin/properties/${pg._id}`)}>
+                    <tr key={pg._id} className="group cursor-pointer transition-colors hover:bg-black/[0.015]" onClick={() => navigate(`${ADMIN}/properties/${pg._id}`)}>
                       <td className={td}>
                         <div className="flex min-w-[220px] items-center gap-3">
                           <Thumb src={pg.images?.[0]?.url} />
@@ -184,7 +185,7 @@ export function PropertiesPage() {
                       <td className={`${td} text-right`} onClick={(e) => e.stopPropagation()}>
                         <RowMenu
                           pg={pg}
-                          onEdit={() => navigate(`/admin/properties/${pg._id}`)}
+                          onEdit={() => navigate(`${ADMIN}/properties/${pg._id}`)}
                           onAction={(a) => (a === 'reject' || a === 'deactivate' ? setPending({ kind: a, pg }) : action.mutate({ id: pg._id, action: a }))}
                           onDelete={() => setPending({ kind: 'delete', pg })}
                         />

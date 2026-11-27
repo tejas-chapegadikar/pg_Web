@@ -11,6 +11,7 @@ import {
   Avatar, Badge, Button, Card, ConfirmDialog, Drawer, EmptyState, Field, PageHeader, Pager, SearchInput, Select, SkeletonRows, Table, Textarea, td, th,
 } from './ui';
 import { fmtDate, fmtDateTime, timeAgo } from './format';
+import { ADMIN } from './adminPath';
 
 export function UsersPage() {
   const [params, setParams] = useSearchParams();
@@ -208,7 +209,7 @@ function UserDrawer({ id, onClose }: { id: string | null; onClose: () => void })
                     const s = listingState(pg);
                     return (
                       <li key={pg._id}>
-                        <Link to={`/admin/properties/${pg._id}`} className="flex items-center justify-between gap-3 px-3 py-2.5 text-[13px] hover:bg-black/[0.02]">
+                        <Link to={`${ADMIN}/properties/${pg._id}`} className="flex items-center justify-between gap-3 px-3 py-2.5 text-[13px] hover:bg-black/[0.02]">
                           <span className="min-w-0">
                             <span className="block truncate font-medium">{pg.title}</span>
                             <span className="text-[12px] text-muted">{formatRent(pg.rent)}</span>

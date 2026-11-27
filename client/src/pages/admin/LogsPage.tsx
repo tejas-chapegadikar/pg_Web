@@ -9,6 +9,7 @@ import {
   Avatar, Badge, Card, EmptyState, PageHeader, Pager, Select, SkeletonRows,
 } from './ui';
 import { fmtDateTime, timeAgo } from './format';
+import { ADMIN } from './adminPath';
 
 const TYPES = [
   { value: '', label: 'Everything' },
@@ -75,10 +76,10 @@ export function LogsPage() {
 
 const targetLink = (l: ActivityEntry) => {
   if (!l.targetId) return null;
-  if (l.targetType === 'property') return `/admin/properties/${l.targetId}`;
-  if (l.targetType === 'user') return `/admin/users?open=${l.targetId}`;
-  if (l.targetType === 'waitlist') return `/admin/waitlist?open=${l.targetId}`;
-  if (l.targetType === 'settings') return '/admin/settings';
+  if (l.targetType === 'property') return `${ADMIN}/properties/${l.targetId}`;
+  if (l.targetType === 'user') return `${ADMIN}/users?open=${l.targetId}`;
+  if (l.targetType === 'waitlist') return `${ADMIN}/waitlist?open=${l.targetId}`;
+  if (l.targetType === 'settings') return `${ADMIN}/settings`;
   return null;
 };
 

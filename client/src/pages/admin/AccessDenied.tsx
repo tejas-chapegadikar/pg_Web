@@ -5,6 +5,7 @@ import { authApi } from '@/api/auth';
 import { useAuthStore } from '@/stores/authStore';
 import logo from '@/assets/logo-mark.svg';
 import { Button } from './ui';
+import { ADMIN } from './adminPath';
 
 /** Signed in, but the server says this account isn't an admin (or the server is unreachable) */
 export function AccessDenied({ status }: { status?: number }) {
@@ -17,7 +18,7 @@ export function AccessDenied({ status }: { status?: number }) {
     await authApi.logout().catch(() => {});
     logout();
     qc.clear();
-    navigate('/admin/login', { replace: true });
+    navigate(`${ADMIN}/login`, { replace: true });
   };
 
   return (

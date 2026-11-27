@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { platformApi } from '@/api/platform';
 import Maintenance from '@/pages/Maintenance';
+import { ADMIN, ADMIN_ENABLED } from '@/pages/admin/adminPath';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { ToastContainer } from '@/components/ui/Toast';
@@ -60,14 +61,17 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          <Route
-            path="/admin/*"
-            element={
-              <Suspense fallback={null}>
-                <AdminApp />
-              </Suspense>
-            }
-          />
+          {/* Secret address from VITE_ADMIN_PATH; /admin is just an unknown page to visitors */}
+          {ADMIN_ENABLED && (
+            <Route
+              path={`${ADMIN}/*`}
+              element={
+                <Suspense fallback={null}>
+                  <AdminApp />
+                </Suspense>
+              }
+            />
+          )}
           <Route path="*" element={<Site />} />
         </Routes>
         <ToastContainer />

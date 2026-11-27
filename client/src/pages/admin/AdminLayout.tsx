@@ -10,15 +10,16 @@ import logo from '@/assets/logo-mark.svg';
 import { useAdmin } from './adminContext';
 import { Avatar, IconButton } from './ui';
 import { MODE_META, ROLE_LABEL } from './labels';
+import { ADMIN } from './adminPath';
 
 const NAV = [
-  { to: '/admin', label: 'Overview', icon: LayoutGrid, end: true },
-  { to: '/admin/properties', label: 'Properties', icon: Building2 },
-  { to: '/admin/waitlist', label: 'Waitlist', icon: ListChecks },
-  { to: '/admin/users', label: 'Users', icon: Users },
-  { to: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
-  { to: '/admin/activity', label: 'Activity logs', icon: Activity },
-  { to: '/admin/settings', label: 'Settings', icon: Settings },
+  { to: ADMIN, label: 'Overview', icon: LayoutGrid, end: true },
+  { to: `${ADMIN}/properties`, label: 'Properties', icon: Building2 },
+  { to: `${ADMIN}/waitlist`, label: 'Waitlist', icon: ListChecks },
+  { to: `${ADMIN}/users`, label: 'Users', icon: Users },
+  { to: `${ADMIN}/analytics`, label: 'Analytics', icon: BarChart3 },
+  { to: `${ADMIN}/activity`, label: 'Activity logs', icon: Activity },
+  { to: `${ADMIN}/settings`, label: 'Settings', icon: Settings },
 ];
 
 export function AdminLayout() {
@@ -89,7 +90,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     await authApi.logout().catch(() => {});
     logout();
     qc.clear();
-    navigate('/admin/login', { replace: true });
+    navigate(`${ADMIN}/login`, { replace: true });
   };
 
   return (
@@ -98,7 +99,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <Brand />
         {mode && (
           <NavLink
-            to="/admin/settings"
+            to={`${ADMIN}/settings`}
             onClick={onNavigate}
             className="mt-4 flex items-center gap-2 rounded-lg border border-black/[0.07] px-2.5 py-2 text-[12.5px] transition-colors hover:bg-black/[0.03]"
             title="Change in Settings"

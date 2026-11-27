@@ -10,6 +10,7 @@ import {
   Card, CardHeader, PageHeader, StatCard,
 } from './ui';
 import { titleCase } from './format';
+import { ADMIN } from './adminPath';
 
 const RANGES = [7, 30, 90, 365];
 const GENDER: Record<string, string> = { male: 'Boys', female: 'Girls', any: 'Co-ed / anyone' };
@@ -148,7 +149,7 @@ export function AnalyticsPage() {
             <ul className="divide-y divide-black/[0.05]">
               {data?.topViewed.map((pg) => (
                 <li key={pg._id}>
-                  <Link to={`/admin/properties/${pg._id}`} className="flex items-center justify-between gap-3 px-5 py-2.5 text-[13px] hover:bg-black/[0.02]">
+                  <Link to={`${ADMIN}/properties/${pg._id}`} className="flex items-center justify-between gap-3 px-5 py-2.5 text-[13px] hover:bg-black/[0.02]">
                     <span className="min-w-0 truncate">
                       {pg.title} <span className="text-muted">· {titleCase(pg.location?.city)}</span>
                     </span>

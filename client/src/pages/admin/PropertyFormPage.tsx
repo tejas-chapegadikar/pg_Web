@@ -14,6 +14,7 @@ import {
   Badge, Button, Card, CardHeader, ConfirmDialog, EmptyState, Field, IconButton, Input, Select, Textarea, Toggle,
 } from './ui';
 import { fmtDateTime, titleCase } from './format';
+import { ADMIN } from './adminPath';
 
 type Form = {
   propertyType: 'pg' | 'flat';
@@ -146,7 +147,7 @@ export function PropertyFormPage() {
   if (id && listing.isError) {
     return (
       <Card>
-        <EmptyState title="Listing not found" text="It may have been deleted." action={<Link to="/admin/properties"><Button>Back to properties</Button></Link>} />
+        <EmptyState title="Listing not found" text="It may have been deleted." action={<Link to={`${ADMIN}/properties`}><Button>Back to properties</Button></Link>} />
       </Card>
     );
   }
@@ -212,7 +213,7 @@ function PropertyEditor({ id, pg, cityOptions, initial }: { id?: string; pg?: Ad
         });
         qc.invalidateQueries({ queryKey: ['admin-properties'] });
         qc.invalidateQueries({ queryKey: ['admin-overview'] });
-        navigate(`/admin/properties/${pg._id}`, { replace: true });
+        navigate(`${ADMIN}/properties/${pg._id}`, { replace: true });
       } else {
         const pg = await adminApi.updateProperty(id!, body);
         qc.setQueryData(['admin-property', id], (old: AdminListing | undefined) => ({ ...old, ...pg, owner: old?.owner ?? pg.owner }));
@@ -234,7 +235,7 @@ function PropertyEditor({ id, pg, cityOptions, initial }: { id?: string; pg?: Ad
     <form onSubmit={save} noValidate>
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-2">
-          <IconButton label="Back to properties" onClick={() => navigate('/admin/properties')}>
+          <IconButton label="Back to properties" onClick={() => navigate(`${ADMIN}/properties`)}>
             <ArrowLeft className="h-4 w-4" />
           </IconButton>
           <div className="min-w-0">
@@ -245,7 +246,7 @@ function PropertyEditor({ id, pg, cityOptions, initial }: { id?: string; pg?: Ad
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" onClick={() => navigate('/admin/properties')}>
+          <Button variant="ghost" onClick={() => navigate(`${ADMIN}/properties`)}>
             Cancel
           </Button>
           <Button type="submit" variant="primary" loading={saving}>
@@ -523,7 +524,7 @@ function StatusCard({ pg }: { pg: AdminListing }) {
         open={confirm === 'delete'}
         onClose={() => setConfirm(null)}
         loading={remove.isPending}
-        onConfirm={() => remove.mutate(pg._id, { onSuccess: () => navigate('/admin/properties', { replace: true }) })}
+        onConfirm={() => remove.mutate(pg._id, { onSuccess: () => navigate(`${ADMIN}/properties`, { replace: true }) })}
         title="Delete this listing?"
         confirmLabel="Delete listing"
         body={

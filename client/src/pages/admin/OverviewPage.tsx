@@ -11,6 +11,7 @@ import {
   Avatar, Badge, Button, Card, CardHeader, EmptyState, PageHeader, StatCard,
 } from './ui';
 import { timeAgo, titleCase } from './format';
+import { ADMIN } from './adminPath';
 
 export function OverviewPage() {
   const { user } = useAdmin();
@@ -32,7 +33,7 @@ export function OverviewPage() {
         title={first ? `Good to see you, ${first}` : 'Overview'}
         description={data ? `The site is in ${MODE_META[data.mode].label} mode. ${MODE_META[data.mode].text}` : 'Everything on anieghar at a glance.'}
         actions={
-          <Link to="/admin/properties/new">
+          <Link to={`${ADMIN}/properties/new`}>
             <Button variant="primary" icon={<Plus className="h-4 w-4" />}>
               Add property
             </Button>
@@ -48,7 +49,7 @@ export function OverviewPage() {
           label="Pending approval"
           value={s?.pending}
           loading={isPending}
-          hint={s?.pending ? <Link to="/admin/properties?status=pending" className="underline-offset-2 hover:underline">Review now</Link> : 'Nothing waiting'}
+          hint={s?.pending ? <Link to={`${ADMIN}/properties?status=pending`} className="underline-offset-2 hover:underline">Review now</Link> : 'Nothing waiting'}
         />
         <StatCard label="Waitlist" value={s?.waitlistTotal} loading={isPending} hint={s && `+${s.waitlistNewWeek} this week`} />
         <StatCard label="Not yet contacted" value={s?.waitlistUncontacted} loading={isPending} hint="Waitlist status: New" />
@@ -80,7 +81,7 @@ export function OverviewPage() {
           <CardHeader
             title="Recently added properties"
             action={
-              <Link to="/admin/properties" className="inline-flex items-center gap-1 text-[12.5px] text-muted hover:text-ink">
+              <Link to={`${ADMIN}/properties`} className="inline-flex items-center gap-1 text-[12.5px] text-muted hover:text-ink">
                 All <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             }
@@ -91,7 +92,7 @@ export function OverviewPage() {
               const state = listingState(pg);
               return (
                 <li key={pg._id}>
-                  <Link to={`/admin/properties/${pg._id}`} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-black/[0.02]">
+                  <Link to={`${ADMIN}/properties/${pg._id}`} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-black/[0.02]">
                     <Thumb src={pg.images?.[0]?.url} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13.5px] font-medium">{pg.title}</p>
@@ -114,7 +115,7 @@ export function OverviewPage() {
           <CardHeader
             title="Recent registrations"
             action={
-              <Link to="/admin/users" className="inline-flex items-center gap-1 text-[12.5px] text-muted hover:text-ink">
+              <Link to={`${ADMIN}/users`} className="inline-flex items-center gap-1 text-[12.5px] text-muted hover:text-ink">
                 All <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             }
@@ -123,7 +124,7 @@ export function OverviewPage() {
           <ul className="divide-y divide-black/[0.05]">
             {data?.recentUsers.map((u) => (
               <li key={u._id}>
-                <Link to={`/admin/users?open=${u._id}`} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-black/[0.02]">
+                <Link to={`${ADMIN}/users?open=${u._id}`} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-black/[0.02]">
                   <Avatar name={u.name || u.email} src={u.avatar} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[13.5px] font-medium">{u.name || 'No name yet'}</p>

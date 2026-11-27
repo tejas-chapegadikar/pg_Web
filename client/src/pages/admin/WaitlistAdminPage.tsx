@@ -10,6 +10,7 @@ import {
   Badge, Button, Card, Drawer, EmptyState, Field, Input, PageHeader, Pager, SearchInput, Select, SkeletonRows, Table, Textarea, td, th,
 } from './ui';
 import { fmtDate, fmtDateTime, timeAgo } from './format';
+import { ADMIN } from './adminPath';
 
 export function WaitlistAdminPage() {
   const [params, setParams] = useSearchParams();
@@ -252,7 +253,7 @@ function EntryDrawer({ id, onClose }: { id: string | null; onClose: () => void }
           {entry.account ? (
             <p className="rounded-lg bg-emerald-50 px-3 py-2 text-[12.5px] text-emerald-800">
               Has an account: {entry.account.name || 'no name'} ({entry.account.role === 'owner' ? 'broker' : 'student'}), since {fmtDate(entry.account.createdAt)}.{' '}
-              <Link to={`/admin/users?open=${entry.account._id}`} className="font-medium underline">
+              <Link to={`${ADMIN}/users?open=${entry.account._id}`} className="font-medium underline">
                 Open profile
               </Link>
             </p>
