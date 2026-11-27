@@ -1,18 +1,15 @@
-const WaitlistEntry = require('../models/WaitlistEntry');const AppError = require('../utils/AppError');
+const WaitlistEntry = require('../models/WaitlistEntry');
+const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 
 const EMAIL_RE = /^\S+@\S+\.\S+$/;
 
-// Students who signed up offline (in person), so they aren't in the database. Update when more join offline.
-const OFFLINE_STUDENT_SIGNUPS = process.env.NODE_ENV === 'test' ? 0 : 29;
-
-/** How many are waiting, split into students and PG owners / brokers (students include offline sign-ups) */
+/** How many are waiting, split into students and PG owners / brokers */
 const counts = async () => {
-  const [online, owners] = await Promise.all([
+  const [students, owners] = await Promise.all([
     WaitlistEntry.countDocuments({ role: { $ne: 'owner' } }),
     WaitlistEntry.countDocuments({ role: 'owner' }),
   ]);
-  const students = online + OFFLINE_STUDENT_SIGNUPS;
   return { count: students + owners, students, owners };
 };
 
