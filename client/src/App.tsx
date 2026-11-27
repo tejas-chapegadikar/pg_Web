@@ -1,5 +1,8 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { platformApi } from '@/api/platform';
+import Maintenance from '@/pages/Maintenance';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { ToastContainer } from '@/components/ui/Toast';
@@ -45,31 +48,55 @@ function OnboardingGate() {
   return <OnboardingModal />;
 }
 
+// The admin panel is its own bundle, so visitors never download it
+const AdminApp = lazy(() => import('@/pages/admin/AdminApp'));
+
 /**
- * Before launch, the waitlist is the whole site: every address shows it, and the listings,
- * dashboards and sign-in stay closed. Set to false to open the full site again.
+ * The admin panel is reachable in every site mode. Everything else follows the mode
+ * the founder sets in Admin → Settings (no redeploy needed).
  */
-const WAITLIST_ONLY = true;
-
 function App() {
-  if (WAITLIST_ONLY) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<WaitlistPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-          <ToastContainer />
-        </BrowserRouter>
-      </QueryClientProvider>
-    );
-  }
-
   return (
-    <GoogleMapsProvider>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <Routes>
+          <Route
+            path="/admin/*"
+            element={
+              <Suspense fallback={null}>
+                <AdminApp />
+              </Suspense>
+            }
+          />
+          <Route path="*" element={<Site />} />
+        </Routes>
+        <ToastContainer />
+      </BrowserRouter>
+    </QueryClientProvider>
+  );
+}
+
+function Site() {
+  const { data, isPending } = useQuery({ queryKey: ['platform'], queryFn: platformApi.get, staleTime: 30_000, retry: 2 });
+  if (isPending) return null;
+  // If the server can't be reached, stay on the waitlist: never open the app by accident
+  const mode = data?.mode ?? 'waitlist';
+
+  if (mode === 'maintenance') return <Maintenance message={data?.maintenanceMessage} />;
+  if (mode === 'waitlist') {
+    return (
+      <Routes>
+        <Route path="/" element={<WaitlistPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
+  }
+  return <PublicSite />;
+}
+
+function PublicSite() {
+  return (
+    <GoogleMapsProvider>
         <Routes>
           {/* Front page for visitors who aren't signed in: join the waitlist or log in */}
           <Route path="/welcome" element={<WaitlistPage showLogin />} />
@@ -111,9 +138,6 @@ function App() {
 
         {/* Global onboarding gate — renders over any page */}
         <OnboardingGate />
-        <ToastContainer />
-      </BrowserRouter>
-    </QueryClientProvider>
     </GoogleMapsProvider>
   );
 }

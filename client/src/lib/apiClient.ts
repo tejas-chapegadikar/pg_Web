@@ -55,7 +55,7 @@ apiClient.interceptors.response.use(
         // Only a rejected session ends it; a network blip or busy server shouldn't sign anyone out
         if ((refreshError as { response?: { status?: number } }).response?.status === 401) {
           useAuthStore.getState().logout();
-          window.location.href = '/login';
+          window.location.href = window.location.pathname.startsWith('/admin') ? '/admin/login' : '/login';
         }
         return Promise.reject(error);
       }

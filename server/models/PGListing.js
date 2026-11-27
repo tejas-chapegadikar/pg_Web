@@ -38,6 +38,7 @@ const pgListingSchema = new mongoose.Schema(
     location: {
       address: { type: String, required: [true, 'Address is required'] },
       city: { type: String, required: [true, 'City is required'], lowercase: true, trim: true },
+      locality: { type: String, trim: true, maxlength: 100 },
       state: { type: String, required: [true, 'State is required'] },
       pincode: { type: String, required: [true, 'Pincode is required'] },
       coordinates: {
@@ -92,6 +93,31 @@ const pgListingSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    furnishing: {
+      type: String,
+      enum: ['furnished', 'semi-furnished', 'unfurnished'],
+    },
+    // Shown to students instead of the account's own name/phone when set (e.g. listings added by an admin)
+    contact: {
+      name: { type: String, trim: true, maxlength: 60 },
+      phone: { type: String, trim: true, match: [/^\+?[0-9]{10,15}$/, 'Please enter a valid contact number'] },
+    },
+    // Review by the anieghar team. Listings from before approvals existed have no status: treated as approved.
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+    },
+    rejectionReason: { type: String, trim: true, maxlength: 300 },
+    // Admin can hide a listing without deleting it
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    // Checked in person by the anieghar team
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
     rules: [{ type: String, trim: true }],
     rentIncludes: [{ type: String, trim: true }],
     additionalCharges: { type: String, trim: true },
@@ -128,6 +154,8 @@ pgListingSchema.index({ rent: 1 });
 pgListingSchema.index({ genderPreference: 1 });
 pgListingSchema.index({ isAvailable: 1 });
 pgListingSchema.index({ owner: 1 });
+pgListingSchema.index({ status: 1 });
+pgListingSchema.index({ createdAt: -1 });
 pgListingSchema.index({ 'location.city': 1, rent: 1, genderPreference: 1 });
 pgListingSchema.index({ 'location.coordinates.lat': 1, 'location.coordinates.lng': 1 }); // proximity queries
 

@@ -1,6 +1,7 @@
 const pgService = require('../services/pg.service');
 const { storeImage, deleteStoredImage } = require('../middleware/upload');
 const catchAsync = require('../utils/catchAsync');
+const { adminRoleOf } = require('../utils/adminAccess');
 
 exports.getAllPGs = catchAsync(async (req, res) => {
   const result = await pgService.getAllPGs(req.query);
@@ -8,7 +9,7 @@ exports.getAllPGs = catchAsync(async (req, res) => {
 });
 
 exports.getPGById = catchAsync(async (req, res) => {
-  const pg = await pgService.getPGById(req.params.id, req.user?._id);
+  const pg = await pgService.getPGById(req.params.id, req.user?._id, { isAdmin: Boolean(adminRoleOf(req.user)) });
   res.status(200).json({ status: 'success', data: { pg } });
 });
 

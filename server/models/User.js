@@ -72,6 +72,18 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Set by an admin; a suspended account can't sign in or use the API. Never set from the user's own requests.
+    isSuspended: {
+      type: Boolean,
+      default: false,
+    },
+    suspendedReason: { type: String, trim: true, maxlength: 300 },
+    // Admin panel access granted by the founder (founders/co-founders from server/.env don't need this)
+    adminRole: {
+      type: String,
+      enum: ['founder', 'cofounder'],
+    },
+    lastLoginAt: Date,
     passwordResetToken: String,
     passwordResetExpires: Date,
   },

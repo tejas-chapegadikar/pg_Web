@@ -18,8 +18,29 @@ const waitlistEntrySchema = new mongoose.Schema(
       enum: ['student', 'owner'],
       default: 'student',
     },
+    // Optional details the team can fill in after contacting them (the join form only asks for email)
+    name: { type: String, trim: true, maxlength: 60 },
+    phone: { type: String, trim: true, maxlength: 20 },
+    college: { type: String, trim: true, maxlength: 100 },
+    city: { type: String, trim: true, maxlength: 60 },
+    // Follow-up by the team. Rows from before this existed count as 'new'.
+    status: {
+      type: String,
+      enum: ['new', 'contacted', 'interested', 'converted'],
+      default: 'new',
+    },
+    notes: [
+      {
+        text: { type: String, trim: true, maxlength: 1000, required: true },
+        by: { type: String, trim: true }, // admin's name or email
+        at: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );
+
+waitlistEntrySchema.index({ createdAt: -1 });
+waitlistEntrySchema.index({ status: 1 });
 
 module.exports = mongoose.model('WaitlistEntry', waitlistEntrySchema);

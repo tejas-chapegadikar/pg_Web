@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, Check, ChevronDown, Copy, Share2, X } from 'lucide-react';
 import { waitlistApi, type WaitlistCounts } from '@/api/waitlist';
+import { platformApi } from '@/api/platform';
 import { homeFor } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
@@ -57,6 +58,8 @@ export function WaitlistPage({ showLogin = false }: { showLogin?: boolean }) {
   const phoneRef = useRef<HTMLDivElement>(null);
 
   const { data: counts } = useQuery({ queryKey: ['waitlist-counts'], queryFn: waitlistApi.counts, staleTime: 30_000 });
+  // Announcement and message text, set in Admin → Settings
+  const { data: platform } = useQuery({ queryKey: ['platform'], queryFn: platformApi.get, staleTime: 30_000 });
   const join = useMutation({
     mutationFn: waitlistApi.join,
     onSuccess: ({ alreadyJoined, ...latest }, vars) => {
@@ -150,6 +153,12 @@ export function WaitlistPage({ showLogin = false }: { showLogin?: boolean }) {
           )}
         </header>
 
+        {platform?.announcement && (
+          <p className="mx-auto max-w-[90%] rounded-full bg-surface px-4 py-1.5 text-center text-[12.5px] font-medium text-ink/80">
+            {platform.announcement}
+          </p>
+        )}
+
         <div className="flex flex-1 flex-col items-center justify-center px-4 pb-6 text-center">
           {/* The font has one weight; a thin outline gives it the marker look of the design */}
           <h1 className="font-hand text-[clamp(40px,7vh,58px)] leading-[1.1] [-webkit-text-stroke:1.2px_currentColor] md:text-[clamp(52px,8.5vh,84px)] md:[-webkit-text-stroke:2px_currentColor]">
@@ -157,7 +166,7 @@ export function WaitlistPage({ showLogin = false }: { showLogin?: boolean }) {
             Belong.
           </h1>
 
-          <BigCount counts={counts} className="mt-[clamp(12px,3vh,32px)]" />
+          <BigCount counts={counts} message={platform?.waitlistMessage} className="mt-[clamp(12px,3vh,32px)]" />
 
           <div className="mt-[clamp(16px,3vh,32px)] flex w-full flex-col items-center">
             {saved && !thanks ? (
@@ -225,7 +234,7 @@ function Dot() {
 }
 
 /** The headline number: shows the real count straight away, and only animates when it changes later */
-function BigCount({ counts, className }: { counts?: WaitlistCounts; className?: string }) {
+function BigCount({ counts, message, className }: { counts?: WaitlistCounts; message?: string; className?: string }) {
   const target = counts?.students ?? 0;
   const [shown, setShown] = useState(target);
 
@@ -264,7 +273,7 @@ function BigCount({ counts, className }: { counts?: WaitlistCounts; className?: 
             {(shown || target).toLocaleString('en-IN')}
           </p>
           <p className="mt-2 text-[15px] font-medium sm:text-[17px]">
-            {target === 1 ? 'student is' : 'students are'} already on the waitlist
+            {message || `${target === 1 ? 'student is' : 'students are'} already on the waitlist`}
           </p>
         </>
       ) : (

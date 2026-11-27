@@ -203,7 +203,24 @@
   from { opacity: 0; transform: translateY(32px) scale(0.98); }
 }
 
+/* Admin panel side panels */
+@keyframes slide-from-right {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes slide-from-left {
+  from { transform: translateX(-24px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.admin-drawer { animation: slide-from-right 0.22s cubic-bezier(0.22, 1, 0.36, 1); }
+.admin-drawer-left { animation: slide-from-left 0.22s cubic-bezier(0.22, 1, 0.36, 1); }
+
 @media (prefers-reduced-motion: reduce) {
+  .admin-drawer,
+  .admin-drawer-left,
+  .animate-fade-in {
+    animation: none;
+  }
   .stagger > *:not([aria-hidden]),
   .animate-drift,
   .animate-kenburns,

@@ -16,6 +16,10 @@ const MAX_SESSIONS = 5; // signed-in devices per account; the oldest is dropped
 
 /** Start a session: new access + refresh token, refresh token stored for rotation */
 const issueTokens = async (user) => {
+  if (user.isSuspended) {
+    throw new AppError('This account has been suspended. Contact the anieghar team for help.', 403);
+  }
+  user.lastLoginAt = new Date();
   const accessToken = generateAccessToken(user._id);
   const refreshToken = generateRefreshToken(user._id);
   if (user.isModified()) await user.save({ validateBeforeSave: false });
@@ -248,7 +252,17 @@ exports.googleLogin = async ({ idToken, role }) => {
 exports.updateProfile = async (userId, { name, role, phone }) => {
   const updateData = { isOnboarded: true };
   if (name !== undefined) updateData.name = name;
-  if (role !== undefined) updateData.role = role;
+  // Accounts pick their role at sign-up; only old phone-only accounts pick it during onboarding.
+  // After that only an admin can change it.
+  if (role !== undefined) {
+    assertRole(role);
+    const current = await User.findById(userId).select('isOnboarded role email');
+    const mayPick = current && !current.isOnboarded && !current.email;
+    if (current && current.role !== role && !mayPick) {
+      throw new AppError('Your account type can’t be changed. Contact the anieghar team for help.', 403);
+    }
+    updateData.role = role;
+  }
   if (phone !== undefined) {
     updateData.phone = phone;
   }
@@ -285,6 +299,7 @@ exports.refreshToken = async (token) => {
 
   const user = swap.modifiedCount ? await User.findById(decoded.id) : null;
   if (!user) throw new AppError('Invalid or expired refresh token.', 401);
+  if (user.isSuspended) throw new AppError('This account has been suspended.', 401);
 
   return { user, accessToken: generateAccessToken(user._id), refreshToken: newRefreshToken };
 };
