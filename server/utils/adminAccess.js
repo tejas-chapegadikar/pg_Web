@@ -9,8 +9,14 @@
  * The email must be verified (Google sign-in or the emailed sign-up code), so nobody can claim
  * an admin's address by typing it.
  */
+// The anieghar team. FOUNDER_EMAILS / COFOUNDER_EMAILS in the environment replace these if set.
+const DEFAULTS = {
+  FOUNDER_EMAILS: 'debashisikah@gmail.com',
+  COFOUNDER_EMAILS: 'tejass.dev15@gmail.com',
+};
+
 const list = (name) =>
-  String(process.env[name] || '')
+  String(process.env[name] || (process.env.NODE_ENV === 'test' ? '' : DEFAULTS[name]))
     .split(',')
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);

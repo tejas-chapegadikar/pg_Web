@@ -39,7 +39,7 @@ export function AdminLogin() {
       logout();
       qc.clear();
       const status = (err as { response?: { status?: number } }).response?.status;
-      setError(status === 403 ? 'This account doesn’t have admin access.' : errorText(err));
+      setError(status === 403 ? 'You don’t have access to this admin panel.' : errorText(err));
     } finally {
       setBusy(null);
     }

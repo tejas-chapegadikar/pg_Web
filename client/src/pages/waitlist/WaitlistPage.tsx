@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, Check, ChevronDown, Copy, Share2, X } from 'lucide-react';
 import { waitlistApi, type WaitlistCounts } from '@/api/waitlist';
 import { platformApi } from '@/api/platform';
+import { ADMIN } from '@/pages/admin/adminPath';
 import { homeFor } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
@@ -221,6 +222,10 @@ export function WaitlistPage({ showLogin = false }: { showLogin?: boolean }) {
         </div>
         <p className="relative z-20 shrink-0 pt-3 text-center text-[12px] text-muted">
           © {new Date().getFullYear()} anieghar · Student stays, made simple
+          {/* For the team only; the server decides who actually gets in */}
+          <Link to={ADMIN} className="ml-2 text-[11px] text-muted/50 transition-colors hover:text-ink">
+            Admin
+          </Link>
         </p>
       </section>
 

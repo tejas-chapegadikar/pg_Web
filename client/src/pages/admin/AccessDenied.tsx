@@ -28,10 +28,10 @@ export function AccessDenied({ status }: { status?: number }) {
         <span className="mx-auto mt-8 flex h-11 w-11 items-center justify-center rounded-full bg-black/[0.05]">
           <ShieldOff className="h-5 w-5" />
         </span>
-        <h1 className="mt-4 text-[20px] font-semibold tracking-tight">{denied ? 'No admin access' : 'Couldn’t reach the server'}</h1>
+        <h1 className="mt-4 text-[20px] font-semibold tracking-tight">{denied ? 'You don’t have access to this admin panel' : 'Couldn’t reach the server'}</h1>
         <p className="mt-2 text-[13.5px] leading-relaxed text-muted">
           {denied
-            ? `${user?.email ?? 'This account'} isn’t an anieghar admin. Sign in with the founder or co-founder account.`
+            ? `${user?.email ?? 'This account'} isn’t on the anieghar team.`
             : 'Check your internet connection and reload the page.'}
         </p>
         <div className="mt-6 flex justify-center gap-2">
