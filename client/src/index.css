@@ -203,6 +203,13 @@
   from { opacity: 0; transform: translateY(32px) scale(0.98); }
 }
 
+/* Gentle "scroll down" hint on the waitlist page */
+@keyframes nudge {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(4px); }
+}
+.animate-nudge { animation: nudge 1.8s ease-in-out infinite; }
+
 /* Admin panel side panels */
 @keyframes slide-from-right {
   from { transform: translateX(24px); opacity: 0; }
@@ -218,6 +225,7 @@
 @media (prefers-reduced-motion: reduce) {
   .admin-drawer,
   .admin-drawer-left,
+  .animate-nudge,
   .animate-fade-in {
     animation: none;
   }

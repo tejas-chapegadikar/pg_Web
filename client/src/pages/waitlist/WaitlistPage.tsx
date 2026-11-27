@@ -21,11 +21,12 @@ const SAVED_KEY = 'anieghar-waitlist'; // remembers a returning visitor already 
 // Stand-in room photos until real ones from Jorhat PGs are added
 const photo = (id: string) => `https://images.unsplash.com/photo-${id}?w=240&h=240&q=70&auto=format&fit=crop`;
 // Placed beside the phone: distance out from its edge, and height from its middle
+// drift: how far below its spot the photo starts before scrolling lifts it in (different per photo = depth)
 const TILES = [
-  { id: '1586023492125-27b2c045efd7', side: -1, out: 70, up: -150 },
-  { id: '1493809842364-78817add7ffb', side: -1, out: 70, up: 30 },
-  { id: '1598928506311-c55ded91a20c', side: 1, out: 70, up: -110 },
-  { id: '1616486338812-3dadae4b4ace', side: 1, out: 70, up: 70 },
+  { id: '1586023492125-27b2c045efd7', side: -1, out: 70, up: -150, drift: 110, tilt: -6 },
+  { id: '1493809842364-78817add7ffb', side: -1, out: 70, up: 30, drift: 200, tilt: 5 },
+  { id: '1598928506311-c55ded91a20c', side: 1, out: 70, up: -110, drift: 160, tilt: 6 },
+  { id: '1616486338812-3dadae4b4ace', side: 1, out: 70, up: 70, drift: 240, tilt: -5 },
 ];
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -40,7 +41,8 @@ function readSaved(): { email: string } | null {
 
 /**
  * The waitlist landing page: a first screen with the number of students waiting and the form,
- * then the app preview. The only scroll effect is the blue line drawing in behind the phone.
+ * then the app preview. Scrolling draws the blue line in, eases the first screen away, and
+ * lifts the phone and room photos into place (all switched off for reduced motion).
  */
 export function WaitlistPage({ showLogin = false }: { showLogin?: boolean }) {
   const location = useLocation();
@@ -80,12 +82,15 @@ export function WaitlistPage({ showLogin = false }: { showLogin?: boolean }) {
     },
   });
 
-  // --p: how much of the blue line is drawn (grows as you scroll); the phone is scaled to fit its screen
+  // --p: how much of the blue line is drawn (grows as you scroll)
+  // --s: how far the app preview has come into view (0 = just below the screen, 1 = filling it)
+  // The phone is also scaled to fit its screen.
   useEffect(() => {
     const root = rootRef.current;
     const area = areaRef.current;
     const phone = phoneRef.current;
-    if (!root || !area || !phone) return;
+    const preview = previewRef.current;
+    if (!root || !area || !phone || !preview) return;
     const still = reducedMotion();
     let frame = 0;
 
@@ -94,6 +99,9 @@ export function WaitlistPage({ showLogin = false }: { showLogin?: boolean }) {
       const max = document.documentElement.scrollHeight - window.innerHeight;
       const progress = max > 0 ? Math.min(1, window.scrollY / max) : 1;
       root.style.setProperty('--p', still ? '1' : (0.4 + 0.6 * progress).toFixed(4));
+      const top = preview.getBoundingClientRect().top;
+      const s = Math.min(1, Math.max(0, 1 - top / window.innerHeight));
+      root.style.setProperty('--s', still ? '1' : s.toFixed(4));
 
       const a = area.getBoundingClientRect();
       const scale = Math.min(0.85, (a.height - 16) / phone.offsetHeight, (a.width - 24) / phone.offsetWidth);
@@ -130,7 +138,7 @@ export function WaitlistPage({ showLogin = false }: { showLogin?: boolean }) {
     <div
       ref={rootRef}
       className="relative overflow-x-clip bg-white font-display text-ink"
-      style={{ '--p': 0.4, '--phone-scale': 0.8, '--phone-w': '256px' } as React.CSSProperties}
+      style={{ '--p': 0.4, '--s': 0, '--phone-scale': 0.8, '--phone-w': '256px' } as React.CSSProperties}
     >
       <Swirl />
 
@@ -160,7 +168,14 @@ export function WaitlistPage({ showLogin = false }: { showLogin?: boolean }) {
           </p>
         )}
 
-        <div className="flex flex-1 flex-col items-center justify-center px-4 pb-6 text-center">
+        {/* Drifts up and fades a little as the app preview scrolls in */}
+        <div
+          className="flex flex-1 flex-col items-center justify-center px-4 pb-6 text-center will-change-transform"
+          style={{
+            opacity: 'calc(1 - var(--s) * 0.75)',
+            transform: 'translateY(calc(var(--s) * -56px)) scale(calc(1 - var(--s) * 0.05))',
+          }}
+        >
           {/* The font has one weight; a thin outline gives it the marker look of the design */}
           <h1 className="font-hand text-[clamp(40px,7vh,58px)] leading-[1.1] [-webkit-text-stroke:1.2px_currentColor] md:text-[clamp(52px,8.5vh,84px)] md:[-webkit-text-stroke:2px_currentColor]">
             Find. Move. <br className="md:hidden" />
@@ -192,7 +207,7 @@ export function WaitlistPage({ showLogin = false }: { showLogin?: boolean }) {
             className="mt-[clamp(6px,2vh,24px)] flex flex-col items-center gap-0.5 text-[12.5px] text-muted transition-colors hover:text-ink"
           >
             See the app
-            <ChevronDown className="h-5 w-5" />
+            <ChevronDown className="animate-nudge h-5 w-5" />
           </button>
         </div>
       </section>
@@ -209,13 +224,18 @@ export function WaitlistPage({ showLogin = false }: { showLogin?: boolean }) {
               loading="lazy"
               className="absolute left-1/2 top-1/2 z-10 hidden h-[clamp(76px,12vh,112px)] w-[clamp(76px,12vh,112px)] rounded-[22px] object-cover shadow-[0_18px_40px_-14px_rgba(17,17,17,0.45)] ring-4 ring-white md:block"
               style={{
-                transform: `translate(calc(-50% + ${t.side} * (var(--phone-w) / 2 + ${t.out}px)), calc(-50% + ${t.up}px * var(--phone-scale)))`,
+                // Its spot beside the phone, plus a lift-in that differs per photo (parallax)
+                transform: `translate(calc(-50% + ${t.side} * (var(--phone-w) / 2 + ${t.out}px)), calc(-50% + ${t.up}px * var(--phone-scale) + (1 - var(--s)) * ${t.drift}px)) rotate(calc((1 - var(--s)) * ${t.tilt}deg))`,
+                opacity: 'calc(var(--s) * 1.4 - 0.2)',
               }}
             />
           ))}
+          {/* The phone rises and grows into place */}
           <div
-            className="absolute left-1/2 top-1/2 z-20"
-            style={{ transform: 'translate(-50%, -50%) scale(var(--phone-scale))' }}
+            className="absolute left-1/2 top-1/2 z-20 will-change-transform"
+            style={{
+              transform: 'translate(-50%, calc(-50% + (1 - var(--s)) * 90px)) scale(calc(var(--phone-scale) * (0.88 + var(--s) * 0.12)))',
+            }}
           >
             <PhonePreview ref={phoneRef} index={phoneIndex} onIndexChange={setPhoneIndex} />
           </div>
